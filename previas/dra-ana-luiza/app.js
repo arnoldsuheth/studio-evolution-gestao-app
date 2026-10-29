@@ -121,8 +121,8 @@ const STATUS=['Agendado','Confirmado','Atendido','Faltou','Cancelado'];
 const tagStatus=s=>s==='Atendido'?'ok':s==='Confirmado'?'ok':s==='Faltou'||s==='Cancelado'?'bad':'warn';
 function ultimaConsulta(pid){return S.appointments.filter(a=>a.patientId===pid&&a.status==='Atendido').map(a=>a.date).sort().pop()||''}
 function proxConsulta(pid){return S.appointments.filter(a=>a.patientId===pid&&a.date>=today()&&(a.status==='Agendado'||a.status==='Confirmado')).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0]}
-function retornos(){ // quem já passou ou vai passar dos 6 meses nos próximos 15 dias e não tem consulta marcada
- return S.patients.map(p=>{const u=ultimaConsulta(p.id);if(!u)return null;const vence=addMeses(u,CONFIG.RETORNO_MESES);return {p,u,vence}}).filter(x=>x&&x.vence<=addDias(today(),15)&&!proxConsulta(x.p.id)&&!(x.p.returnContactedAt&&x.p.returnContactedAt>=x.u)).sort((a,b)=>a.vence.localeCompare(b.vence))}
+function retornos(dias=30){ // ninguém some: aparece até ter consulta marcada (contato só muda o aviso)
+ return S.patients.map(p=>{const u=ultimaConsulta(p.id);if(!u)return null;const vence=addMeses(u,CONFIG.RETORNO_MESES);return {p,u,vence,atraso:diffDias(vence,today()),contato:p.returnContactedAt&&p.returnContactedAt>=u?p.returnContactedAt:''}}).filter(x=>x&&x.vence<=addDias(today(),dias)&&!proxConsulta(x.p.id)).sort((a,b)=>a.vence.localeCompare(b.vence))}
 function aniversariantes(){const m=today().slice(5,7);return S.patients.filter(p=>p.birth&&p.birth.slice(5,7)===m).sort((a,b)=>a.birth.slice(8).localeCompare(b.birth.slice(8)))}
 function mesResumo(k){const ent=S.entries.filter(e=>mesKey(e.date)===k);const rec=ent.filter(e=>e.type==='Entrada'&&e.paid).reduce((a,e)=>a+e.value,0),sai=ent.filter(e=>e.type==='Saída'&&e.paid).reduce((a,e)=>a+e.value,0);return {rec,sai,saldo:rec-sai}}
 /* ======================================================================
@@ -259,6 +259,85 @@ function slotsDoDia(dia,ignorarId){const g=agCfg();const step=+g.intervalo||30;
  return {trabalha,livres:out}}
 function proxDiasUteis(n){const g=agCfg(),out=[];for(let i=0;out.length<n&&i<40;i++){const d=addDias(today(),i);if(g.dias.includes(new Date(d+'T12:00:00').getDay())&&!(g.folgas||[]).includes(d))out.push(d)}return out}
 
+
+/* ---------- acompanhamento do paciente (árvore do início ao fim) ---------- */
+const ETAPAS_SUG=['Avaliação','Limpeza','Restauração','Obturação','Canal','Extração','Clareamento','Prótese','Implante','Ortodontia','Revisão'];
+const etapas=p=>(p&&p.etapas)||[];
+const proxEtapa=p=>etapas(p).find(e=>e.status!=='feito');
+const normTxt=t=>(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+function syncEtapa(a){const p=pac(a.patientId);if(!p||!etapas(p).length)return;const ets=etapas(p).map(e=>({...e}));
+ let e=ets.find(x=>x.appointmentId===a.id);
+ if(!e&&a.procedure&&a.status!=='Cancelado'&&a.status!=='Faltou')e=ets.find(x=>x.status!=='feito'&&!x.appointmentId&&normTxt(x.title)===normTxt(a.procedure));
+ if(!e)return;
+ if(a.status==='Atendido'){e.status='feito';e.date=a.date;e.appointmentId=a.id}
+ else if(a.status==='Agendado'||a.status==='Confirmado'){e.status='agendado';e.date=a.date;e.appointmentId=a.id}
+ else{e.status='pendente';e.date='';e.appointmentId=''}
+ upsert('patients',{...p,etapas:ets})}
+function arvoreHTML(ets,p,podeAgendar){const u=p?ultimaConsulta(p.id):'';const fim=ets.length&&ets.every(e=>e.status==='feito');
+ return `<div class="tree">${ets.length?ets.map((e,i)=>`<div class="node ${e.status}"><button type="button" class="dotn" data-et-toggle="${e.id}" aria-label="Marcar como feito">${e.status==='feito'?svg('check',14):i+1}</button><div class="grow"><b>${esc(e.title)}</b><small>${e.status==='feito'?'Feito em '+dataBR(e.date):e.status==='agendado'?'Agendado · '+diaCurto(e.date):'A fazer'}</small></div>${e.status==='pendente'&&podeAgendar?`<button type="button" class="chip xs" data-et-agendar="${e.id}">${svg('cal',12)} Agendar</button>`:''}<button type="button" class="icon-btn ghost sm" data-et-del="${e.id}" aria-label="Tirar etapa">${svg('x',13)}</button></div>`).join(''):'<p class="muted">Monte o caminho do tratamento tocando nas etapas abaixo, na ordem.</p>'}
+ <div class="node fim ${fim?'ativo':''}"><span class="dotn">${svg('refresh',14)}</span><div class="grow"><b>Retorno de ${CONFIG.RETORNO_MESES} meses</b><small>${u?'Previsto para '+dataBR(addMeses(u,CONFIG.RETORNO_MESES)):'Depois da última etapa'}</small></div></div></div>
+ <div class="chips">${ETAPAS_SUG.map(t=>`<button type="button" class="chip sm add" data-et-add="${esc(t)}">${svg('plus',12)} ${t}</button>`).join('')}</div>`}
+function bindArvore(root,st,p,repaint){
+ const salvar=()=>{if(p&&pac(p.id))upsert('patients',{...pac(p.id),etapas:st.etapas});repaint()};
+ root.querySelectorAll('[data-et-add]').forEach(b=>b.onclick=()=>{st.etapas=[...st.etapas,{id:uid(),title:b.dataset.etAdd,status:'pendente',date:'',appointmentId:''}];salvar()});
+ root.querySelectorAll('[data-et-del]').forEach(b=>b.onclick=()=>{st.etapas=st.etapas.filter(e=>e.id!==b.dataset.etDel);salvar()});
+ root.querySelectorAll('[data-et-toggle]').forEach(b=>b.onclick=()=>{st.etapas=st.etapas.map(e=>e.id!==b.dataset.etToggle?e:e.status==='feito'?{...e,status:'pendente',date:'',appointmentId:''}:{...e,status:'feito',date:e.date||today()});salvar()});
+ root.querySelectorAll('[data-et-agendar]').forEach(b=>b.onclick=()=>{const e=st.etapas.find(x=>x.id===b.dataset.etAgendar);dlg.close();formConsulta(null,p.id,'',{procedure:e.title})})}
+
+/* ---------- colar pedido (WhatsApp ou convênio) ---------- */
+const ROTULOS=[
+ ['name',/^(nome( completo)?( do paciente| do beneficiario)?|paciente|beneficiario|titular|cliente)$/],
+ ['phone',/^(telefone|tel|celular|cel|whats ?app|whats|contato|fone|telefone de contato)$/],
+ ['plan',/^(convenio|plano|operadora|plano de saude|plano odontologico)$/],
+ ['card',/^(carteirinha|carteira|n(o|º|°|umero)? ?(da)? ?carteir(a|inha)|matricula|codigo do beneficiario|cartao|numero do cartao)$/],
+ ['procedure',/^(procedimento|procedimentos|tratamento|servico|atendimento|especialidade|motivo|motivo da consulta)$/],
+ ['date',/^(data|dia|data desejada|data preferencial|data da consulta|data sugerida)$/],
+ ['time',/^(horario|hora|horario desejado|horario preferencial|periodo|turno)$/],
+ ['auth',/^(guia|n(o|º|°|umero)? ?(da)? ?guia|senha|autorizacao|n(o|º|°|umero)? ?(da)? ?autorizacao|protocolo)$/],
+ ['notes',/^(obs|observacao|observacoes|queixa|descricao)$/]];
+const DIAS_SEM=['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+function lerData(v){v=normTxt(v);if(!v)return '';if(v.includes('hoje'))return today();if(v.includes('amanha'))return addDias(today(),1);
+ let m=v.match(/(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?/);if(m){const y=m[3]?(m[3].length===2?'20'+m[3]:m[3]):today().slice(0,4);let d=y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');if(!m[3]&&d<today())d=(+y+1)+d.slice(4);return d}
+ m=v.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];
+ const i=DIAS_SEM.findIndex(d=>v.includes(d));if(i>=0){for(let k=1;k<=7;k++){const d=addDias(today(),k);if(new Date(d+'T12:00:00').getDay()===i)return d}}return ''}
+function lerHora(v){const m=normTxt(v).match(/\b(\d{1,2})\s*(?:[:h]\s*(\d{2})?|horas?\b)/);if(!m)return '';const h=+m[1];if(h>23)return '';return String(h).padStart(2,'0')+':'+(m[2]||'00')}
+function lerPedidoTexto(txt){
+ const link=txt.match(/#pedido=([\w-]+)/);if(link){try{const j=JSON.parse(td.decode(unb64(link[1].replace(/-/g,'+').replace(/_/g,'/'))));if(j&&j.n)return {doLink:j}}catch{}}
+ const r={name:'',phone:'',plan:'',card:'',procedure:'',date:'',time:'',auth:'',notes:''};
+ for(const linha of txt.split(/\n+/)){const m=linha.replace(/[*_~]/g,'').match(/^\s*[-•▪️✅👉🔹]*\s*([^:：]{2,40})[:：]\s*(.+)$/u);if(!m)continue;const rot=normTxt(m[1]).replace(/[^a-z0-9º° ]/g,'').replace(/\s+/g,' ').trim();
+  const alvo=ROTULOS.find(([,re])=>re.test(rot));if(alvo&&!r[alvo[0]])r[alvo[0]]=m[2].trim()}
+ const limpo=txt.replace(/[*_~]/g,'');
+ if(!r.phone){const m=limpo.match(/(?:\+?55\s?)?\(?\d{2}\)?\s?9?\s?\d{4}[-\s.]?\d{4}/);if(m)r.phone=m[0]}
+ const data=lerData(r.date||limpo),hora=lerHora(r.time||'')||(!r.time?lerHora((limpo.match(/\b\d{1,2}(:\d{2}|h\d{0,2})\b/)||[''])[0]):'');
+ if(!r.procedure){const lista=[...new Set([...PROCS(),...ETAPAS_SUG])];r.procedure=lista.find(p=>normTxt(limpo).includes(normTxt(p)))||''}
+ else{const lista=[...new Set([...PROCS(),...ETAPAS_SUG])];r.procedure=lista.find(p=>normTxt(r.procedure).includes(normTxt(p)))||r.procedure.slice(0,100)}
+ r.date=data;r.time=hora;r.phone=r.phone.replace(/[^\d()+\s-]/g,'').trim();r.name=r.name.replace(/\s+/g,' ').slice(0,100);
+ return r}
+function acharPaciente(r){const tel=soNum(r.phone);return S.patients.find(p=>tel&&soNum(p.phone)===tel)||S.patients.find(p=>r.card&&p.card&&p.card.replace(/\D/g,'')===r.card.replace(/\D/g,''))||S.patients.find(p=>r.name&&normTxt(p.name)===normTxt(r.name))}
+function formColar(){
+ openSheet('Colar pedido',`<p class="muted">No WhatsApp, segure a mensagem do paciente ou do convênio, toque em <b>Copiar</b> e depois aqui em <b>Colar</b>. O painel lê nome, telefone, convênio, carteirinha, procedimento, data e horário.</p>
+  <button class="btn main full big" data-colar>${svg('down',18)} Colar do WhatsApp</button>
+  <textarea id="txtPedido" placeholder="Ou cole/escreva a mensagem aqui…" style="min-height:120px"></textarea>
+  <button class="btn ghost full" data-ler>${svg('search',18)} Ler pedido</button><div id="lido"></div>`,d=>{
+  const ta=d.querySelector('#txtPedido'),out=d.querySelector('#lido');
+  const ler=()=>{const r=lerPedidoTexto(ta.value||'');if(r.doLink){fecharDlg();PEDIDO=r.doLink;setTimeout(abrirPedido,220);return}
+   if(!r.name&&!r.phone){out.innerHTML='<p class="err">Não encontrei nome nem telefone. Confira o texto colado.</p>';return}
+   const ex=acharPaciente(r);
+   out.innerHTML=`<div class="lido glass"><p class="sheet-sub">${ex?'Paciente já cadastrado: '+esc(ex.name):'Novo paciente'}</p>
+    <div class="grid2"><label class="field">Nome<input data-k="name" value="${esc(ex?.name||r.name)}"></label><label class="field">WhatsApp<input data-k="phone" value="${esc(r.phone||ex?.phone||'')}"></label></div>
+    <div class="grid2"><label class="field">Convênio<input data-k="plan" value="${esc(r.plan||ex?.plan||'')}" placeholder="Particular"></label><label class="field">Carteirinha<input data-k="card" value="${esc(r.card||ex?.card||'')}"></label></div>
+    <div class="grid2"><label class="field">Procedimento<input data-k="procedure" value="${esc(r.procedure)}"></label><label class="field">Guia / senha<input data-k="auth" value="${esc(r.auth)}"></label></div>
+    <div class="grid2"><label class="field">Data<input type="date" data-k="date" value="${r.date}"></label><label class="field">Horário<input type="time" data-k="time" value="${r.time}"></label></div>
+    <button class="btn main full big" data-ok>${svg('check',18)} Cadastrar e marcar consulta</button></div>`;
+   out.querySelector('[data-ok]').onclick=()=>{const v={};out.querySelectorAll('[data-k]').forEach(i=>v[i.dataset.k]=i.value.trim());if(!v.name)return toast('Falta o nome.');
+    const p0=acharPaciente(v)||ex;const conv=!!v.plan&&normTxt(v.plan)!=='particular';
+    const p={...(p0||{id:uid(),birth:'',notes:'',etapas:[]}),name:v.name.slice(0,100),phone:v.phone||p0?.phone||'',type:conv?'Convênio':(p0?.type||'Particular'),plan:conv?v.plan.slice(0,60):(p0?.plan||''),card:v.card.slice(0,40)||p0?.card||''};
+    if(v.procedure&&!etapas(p).some(e=>e.status!=='feito'&&normTxt(e.title)===normTxt(v.procedure)))p.etapas=[...etapas(p),{id:uid(),title:v.procedure.slice(0,60),status:'pendente',date:'',appointmentId:''}];
+    upsert('patients',p);dlg.close();toast(p0?'Cadastro atualizado.':'Paciente cadastrado.');
+    formConsulta(null,p.id,v.time,{date:v.date||'',procedure:v.procedure,notes:[v.auth?'Guia/senha: '+v.auth:'',r.notes].filter(Boolean).join(' · ').slice(0,300)})}};
+  d.querySelector('[data-ler]').onclick=ler;
+  d.querySelector('[data-colar]').onclick=async()=>{try{const t=await navigator.clipboard.readText();if(!t)throw 0;ta.value=t;ler()}catch{toast('Toque na caixa de texto, segure e escolha Colar.');ta.focus()}}})}
+
 /* ---------- casca: topo, menu flutuante, botão + ---------- */
 const PAGES={inicio:['Início','home'],agenda:['Agenda','cal'],pacientes:['Pacientes','users'],financeiro:['Finanças','money'],cuidar:['Para mim','heart'],tratamentos:['Tratamentos','tooth'],ajustes:['Ajustes','gear']};
 const DOCK=['inicio','agenda','pacientes','financeiro','cuidar'];
@@ -288,7 +367,7 @@ function openSheet(title,html,bind){dlg.innerHTML=`<div class="sheet"><div class
 function abrirDlg(){dlg.classList.remove('closing');if(!dlg.open)dlg.showModal()}
 function fecharDlg(){if(!dlg.open)return;dlg.classList.add('closing');setTimeout(()=>{dlg.close();dlg.classList.remove('closing')},180)}
 function menuMais(soAcoes){
- const acoes=`<div class="tiles">
+ const acoes=`<button class="tile wide" data-go="colar">${svg('wa',22)}<span><b>Colar pedido do WhatsApp</b><small>paciente ou convênio · o painel preenche</small></span></button><div class="tiles">
   <button class="tile" data-go="tarefa">${svg('list',22)}<b>Tarefa do dia</b></button>
   <button class="tile" data-go="consulta">${svg('cal',22)}<b>Consulta</b></button>
   <button class="tile" data-go="paciente">${svg('users',22)}<b>Paciente</b></button>
@@ -300,7 +379,7 @@ function menuMais(soAcoes){
  openSheet(soAcoes===true?'Adicionar':'Menu',soAcoes===true?acoes:`<p class="sheet-sub">Adicionar</p>${acoes}<p class="sheet-sub">Mais páginas</p>${paginas}`,d=>{
   d.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{fecharDlg();ir(b.dataset.page)});
   d.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const g=b.dataset.go;dlg.close();
-   if(g==='tarefa')formTarefa();else if(g==='consulta')formConsulta();else if(g==='paciente')formPaciente();else if(g==='recebimento')formEntradaFin(null,'Entrada');else if(g==='despesa')formEntradaFin(null,'Saída');else if(g==='agua'){beberAgua(1);render()}})})}
+   if(g==='colar')formColar();else if(g==='tarefa')formTarefa();else if(g==='consulta')formConsulta();else if(g==='paciente')formPaciente();else if(g==='recebimento')formEntradaFin(null,'Entrada');else if(g==='despesa')formEntradaFin(null,'Saída');else if(g==='agua'){beberAgua(1);render()}})})}
 function formTarefa(){openSheet('Nova tarefa',`<form class="task-add big" id="ft"><input name="t" placeholder="O que precisa fazer hoje?" maxlength="120" autocomplete="off" autofocus><button class="icon-btn main" aria-label="Adicionar">${svg('plus',20)}</button></form><p class="sheet-sub">Sugestões</p><div class="chips">${SUGESTOES_TAREFA.map(s=>`<button class="chip" data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div>`,d=>{
  d.querySelector('#ft').onsubmit=e=>{e.preventDefault();addTarefa(e.target.t.value);fecharDlg();render()};
  d.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{addTarefa(b.dataset.s);fecharDlg();render()})})}
@@ -314,8 +393,8 @@ function itemConsulta(a,opts={}){const p=pac(a.patientId);const nome=p?.name||'P
  if((a.status==='Confirmado'||a.status==='Agendado')&&a.date<=today())acoes.push(`<button class="icon-btn ok" data-atendido="${a.id}" aria-label="Atendido">${svg('check',17)}</button><button class="icon-btn bad" data-faltou="${a.id}" aria-label="Faltou">${svg('x',17)}</button>`);
  if(p&&a.status==='Faltou')acoes.push(`<a class="icon-btn wa" href="${waLink(p.phone,MSG.faltou(p,a))}" target="_blank" rel="noopener" aria-label="Remarcar">${svg('wa',17)}</a>`);
  return `<div class="appt st-${a.status.toLowerCase()}"><div class="appt-time"><b>${esc(a.time)}</b><small>${a.duration||30} min</small></div><button class="appt-body" data-edit-cons="${a.id}"><b>${esc(nome)}</b><small>${opts.data?diaCurto(a.date)+' · ':''}${esc(a.procedure||'Consulta')}</small><span class="tag ${tagStatus(a.status)}">${a.status}</span></button><div class="appt-act">${acoes.join('')}</div></div>`}
-function itemPaciente(p){const u=ultimaConsulta(p.id),pr=proxConsulta(p.id);const venc=u&&addMeses(u,CONFIG.RETORNO_MESES)<=today()&&!pr;
- return `<button class="row-item" data-edit-pac="${p.id}">${avatar(p.name)}<span class="grow"><b>${esc(p.name)}</b><small>${pr?'Próxima: '+diaCurto(pr.date)+' '+pr.time:u?'Última: '+dataBR(u):'Sem consultas ainda'}</small></span>${venc?'<span class="tag warn">Retorno</span>':p.type==='Convênio'?`<span class="tag">${esc(p.plan||'Convênio')}</span>`:''}${svg('right',16)}</button>`}
+function itemPaciente(p){const u=ultimaConsulta(p.id),pr=proxConsulta(p.id);const venc=u&&addMeses(u,CONFIG.RETORNO_MESES)<=addDias(today(),30)&&!pr;
+ return `<button class="row-item" data-edit-pac="${p.id}">${avatar(p.name)}<span class="grow"><b>${esc(p.name)}</b><small>${pr?'Próxima: '+diaCurto(pr.date)+' '+pr.time:u?'Última: '+dataBR(u):'Sem consultas ainda'}</small>${etapas(p).length?`<small class="et-line">${svg('tooth',12)} ${proxEtapa(p)?'Próxima etapa: '+esc(proxEtapa(p).title):'Tratamento concluído'} · ${etapas(p).filter(e=>e.status==='feito').length}/${etapas(p).length}</small>`:''}</span>${venc?'<span class="tag warn">Retorno</span>':p.type==='Convênio'?`<span class="tag">${esc(p.plan||'Convênio')}</span>`:''}${svg('right',16)}</button>`}
 function itemTrat(t){const p=pac(t.patientId),pct=t.sessions?Math.round((t.done||0)/t.sessions*100):0;
  return `<div class="row-item trat"><button class="grow ilink" data-edit-trat="${t.id}"><b>${esc(t.title)}</b><small>${esc(p?.name||'Paciente excluído')} · ${t.done||0} de ${t.sessions||1} sessões${t.budget?' · '+money(t.budget):''}</small><span class="progress sm"><i style="width:${pct}%"></i></span></button>${t.status==='Em andamento'?`<button class="icon-btn ok" data-sessao="${t.id}" aria-label="Mais uma sessão feita">${svg('plus',17)}</button>`:`<span class="tag ${t.status==='Concluído'?'ok':'bad'}">${t.status}</span>`}</div>`}
 function itemEntrada(e){const late=!e.paid&&e.date<today();
@@ -330,22 +409,23 @@ VIEWS.inicio=function(){const hoje=S.appointments.filter(a=>a.date===today()&&a.
  const h=new Date().getHours(),saud=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
  const atencao=[
   ...amanha.map(a=>({ico:'bell',t:'Confirmar '+primeiro(pac(a.patientId)?.name)+' · amanhã '+a.time,act:`<a class="chip sm wa" href="${waLink(pac(a.patientId)?.phone,MSG.confirmar(pac(a.patientId),a))}" target="_blank" rel="noopener" data-confirmou="${a.id}">${svg('wa',14)} Enviar</a>`})),
-  ...ret.slice(0,4).map(x=>({ico:'refresh',t:primeiro(x.p.name)+' · retorno de '+CONFIG.RETORNO_MESES+' meses',act:`<a class="chip sm wa" href="${waLink(x.p.phone,MSG.retorno(x.p))}" target="_blank" rel="noopener" data-contatado="${x.p.id}">${svg('wa',14)} Chamar</a>`})),
   ...aniv.map(p=>({ico:'cake',t:'Aniversário de '+primeiro(p.name)+' hoje',act:`<a class="chip sm wa" href="${waLink(p.phone,MSG.aniversario(p))}" target="_blank" rel="noopener">${svg('wa',14)} Parabéns</a>`})),
   ...atras.slice(0,3).map(e=>({ico:'money',t:e.desc+' · '+money(e.value)+' em atraso',act:`<button class="chip sm" data-pago="${e.id}">${svg('check',14)} Recebi</button>`}))];
  return `<section class="hero"><div class="hero-logo"><img src="logo-t.png" alt="${esc(APP_NAME)}"></div>
   <p class="eyebrow">${diaSemana(today())}</p><h1 class="title">${saud}, <em>${esc(CONFIG.PRO_NAME)}</em></h1></section>
  <div class="stats">
   <button class="stat glass" data-page="agenda"><small>Consultas hoje</small><strong>${hoje.length}</strong><span>${hoje.filter(a=>a.status==='Confirmado'||a.status==='Atendido').length} confirmada(s)</span></button>
-  <button class="stat glass" data-page="pacientes" data-pf="Retorno"><small>Retornos</small><strong>${ret.length}</strong><span>${CONFIG.RETORNO_MESES} meses</span></button>
+  <button class="stat glass ${ret.some(x=>x.atraso>=0)?'alerta':''}" data-page="pacientes" data-pf="Retorno"><small>Retornos</small><strong>${ret.filter(x=>x.atraso>=0).length}</strong><span>${ret.filter(x=>x.atraso<0).length} vencem em 30 dias</span></button>
   <button class="stat glass" data-page="financeiro"><small>Recebido no mês</small><strong>${money(r.rec).replace(',00','')}</strong><span>saldo ${money(r.saldo).replace(',00','')}</span></button>
  </div>
  ${!agCfg().whatsapp?`<section class="card glass cta"><span class="mi-ico">${svg('link',20)}</span><span class="grow"><b>Ligue a página de agendamento</b><small>Informe o WhatsApp do consultório e os pacientes pedem horário sozinhos.</small></span><button class="btn sm main" data-act="cfg-agenda">Ligar</button></section>`:''}
+ ${cardProximo()}
+ ${cardRetornos(ret)}
  <div class="cols">
  <div class="col">
  <section class="card glass"><div class="card-h"><h3>${svg('cal',18)} Agenda de hoje</h3><button class="link" data-page="agenda">Ver agenda ${svg('right',14)}</button></div>
   ${hoje.length?`<div class="appts">${hoje.map(a=>itemConsulta(a)).join('')}</div>`:`<p class="muted center">Nenhuma consulta hoje.</p>`}
-  <button class="btn ghost full" data-act="nova-consulta">${svg('plus',18)} Marcar consulta</button></section>
+  <button class="btn main full" data-act="nova-consulta">${svg('plus',18)} Marcar consulta</button></section>
  ${atencao.length?`<section class="card glass"><div class="card-h"><h3>${svg('bell',18)} Precisa de você</h3><span class="pill">${atencao.length}</span></div><div class="att">${atencao.map(x=>`<div class="att-i"><span class="mi-ico sm">${svg(x.ico,16)}</span><span class="grow">${esc(x.t)}</span>${x.act}</div>`).join('')}</div></section>`:''}
  </div>
  <div class="col">
@@ -354,6 +434,19 @@ VIEWS.inicio=function(){const hoje=S.appointments.filter(a=>a.date===today()&&a.
   ${ci?`<div class="mc"><span class="ring sm fase-${ci.cor}" style="--p:${Math.min(100,ci.dia/ci.len*100)}">${svg('moon',18)}</span><span class="grow"><b>Dia ${Math.max(1,ci.dia)} do ciclo · ${esc(ci.fase)}</b><small>${ci.faltam>0?'Próxima menstruação em '+ci.faltam+' dia'+(ci.faltam>1?'s':''):ci.faltam===0?'Menstruação prevista para hoje':'Prevista para '+dataBR(ci.prox)}</small></span></div>`:''}</section>
  ${cardVerso()}
  </div></div>`};
+function cardProximo(){const agora=new Date().getHours()*60+new Date().getMinutes();
+ const futuras=S.appointments.filter(a=>(a.status==='Agendado'||a.status==='Confirmado')&&(a.date>today()||(a.date===today()&&hmin(a.time)+(+a.duration||30)>agora))).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const a=futuras[0];if(!a)return '';const p=pac(a.patientId);const depois=futuras[1];const e=proxEtapa(p);
+ const falta=a.date===today()?hmin(a.time)-agora:null;
+ const quando=a.date===today()?(falta<=0?'agora':falta<60?'em '+falta+' min':'hoje às '+a.time):diaCurto(a.date)+' às '+a.time;
+ return `<section class="next-card"><div class="next-top"><span class="eyebrow light">Próximo paciente · ${esc(quando)}</span><span class="tag light">${a.status}</span></div>
+  <button class="next-main" data-edit-cons="${a.id}">${avatar(p?.name||'?')}<span class="grow"><b>${esc(p?.name||'')}</b><small>${esc(a.time)} · ${esc(a.procedure||'Consulta')}${p&&p.type==='Convênio'?' · '+esc(p.plan||'Convênio'):''}</small>${p&&etapas(p).length?`<small class="et-line">${svg('tooth',12)} ${e?'Etapa: '+esc(e.title)+' ('+(etapas(p).filter(x=>x.status==='feito').length+1)+' de '+etapas(p).length+')':'Tratamento concluído'}</small>`:''}</span></button>
+  <div class="next-act">${p&&a.status==='Agendado'?`<a class="btn sm wa" href="${waLink(p.phone,MSG.confirmar(p,a))}" target="_blank" rel="noopener" data-confirmou="${a.id}">${svg('wa',16)} Confirmar</a>`:''}${a.date===today()?`<button class="btn sm light" data-atendido="${a.id}">${svg('check',16)} Atendido</button>`:''}<button class="btn sm light" data-edit-pac="${a.patientId}">${svg('users',16)} Ficha</button></div>
+  ${depois?`<div class="next-after">Depois: <b>${esc(pac(depois.patientId)?.name||'')}</b> · ${depois.date===today()?depois.time:diaCurto(depois.date)+' '+depois.time}</div>`:''}</section>`}
+function cardRetornos(ret){const venc=ret.filter(x=>x.atraso>=0),prox=ret.filter(x=>x.atraso<0);
+ return `<section class="card glass ret-card ${venc.length?'alerta':''}"><div class="card-h"><h3>${svg('refresh',18)} Ninguém esquecido</h3><span class="pill">${venc.length?venc.length+' passou de '+CONFIG.RETORNO_MESES+' meses':'tudo em dia'}</span></div>
+ ${ret.length?`<div class="att">${ret.slice(0,filtro.verRet?99:5).map(x=>`<div class="att-i">${avatar(x.p.name)}<span class="grow"><b class="nm">${esc(x.p.name)}</b><small class="${x.atraso>=0?'txt-bad':'txt-warn'}">${x.atraso>0?'Sem consulta há '+Math.round(diffDias(x.u,today())/30)+' meses · '+x.atraso+' dias de atraso':x.atraso===0?'Completa '+CONFIG.RETORNO_MESES+' meses hoje':'Completa '+CONFIG.RETORNO_MESES+' meses em '+(-x.atraso)+' dias'}${x.contato?' · chamado '+diaCurto(x.contato).toLowerCase():''}</small></span><a class="chip sm wa" href="${waLink(x.p.phone,MSG.retorno(x.p))}" target="_blank" rel="noopener" data-contatado="${x.p.id}">${svg('wa',14)} ${x.contato?'De novo':'Chamar'}</a><button class="icon-btn sm" data-marcar-pac="${x.p.id}" aria-label="Marcar consulta">${svg('cal',15)}</button></div>`).join('')}</div>${ret.length>5&&!filtro.verRet?`<button class="link" data-ver-ret>Ver todos (${ret.length}) ${svg('right',14)}</button>`:''}`
+ :`<p class="muted">Nenhum paciente perto dos ${CONFIG.RETORNO_MESES} meses sem consulta. O painel avisa aqui sozinho, e o paciente só sai da lista quando tiver consulta marcada.</p>`}</section>`}
 const tempoDesde=ts=>{const m=Math.round((Date.now()-ts)/6e4);return m<1?'agora':m<60?m+' min':Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'')};
 
 /* ---------- Agenda ---------- */
@@ -364,13 +457,13 @@ VIEWS.agenda=function(){const d=filtro.dia;const ini=addDias(d,-((new Date(d+'T1
  const linhas=[...list.map(a=>({t:a.time,h:itemConsulta(a)})),...livres.filter(t=>!list.some(a=>a.time===t)).map(t=>({t,h:`<button class="slot" data-slot="${t}"><b>${t}</b><span>Horário livre</span>${svg('plus',16)}</button>`}))].sort((a,b)=>a.t.localeCompare(b.t));
  const mes=new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
  return `<section class="page-h"><p class="eyebrow">${esc(mes)}</p><h1 class="title">Agenda</h1></section>
- <section class="card glass week-card"><div class="week-nav"><button class="icon-btn ghost" data-sem="-7" aria-label="Semana anterior">${svg('left',18)}</button><button class="chip sm" data-dia="${today()}">Hoje</button><button class="icon-btn ghost" data-sem="7" aria-label="Próxima semana">${svg('right',18)}</button></div>
+ <section class="card glass week-card"><div class="week-nav"><button class="icon-btn ghost" data-sem="-7" aria-label="Semana anterior">${svg('left',18)}</button><button class="chip sm ${filtro.dia===today()?'on':''}" data-dia="${today()}">Hoje</button><button class="icon-btn ghost" data-sem="7" aria-label="Próxima semana">${svg('right',18)}</button></div>
  <div class="week">${semana.map(s=>{const n=S.appointments.filter(a=>a.date===s&&a.status!=='Cancelado').length;return `<button data-dia="${s}" class="${s===d?'on':''} ${s===today()?'hoje':''}"><small>${new Date(s+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}</small><b>${s.slice(8)}</b><i>${n?'•'.repeat(Math.min(n,3)):''}</i></button>`}).join('')}</div></section>
  <section class="card glass"><div class="card-h"><h3>${esc(diaSemana(d))}</h3><span class="pill">${list.length} consulta${list.length===1?'':'s'}${trabalha?' · '+livres.length+' livre'+(livres.length===1?'':'s'):''}</span></div>
  ${!trabalha&&!list.length?'<p class="muted center">Dia sem atendimento.</p>':''}
  ${linhas.length?`<div class="appts">${linhas.map(x=>x.h).join('')}</div>`:trabalha?'<p class="muted center">Dia cheio ou já encerrado.</p>':''}
  ${canc.length?`<details class="more"><summary>${canc.length} cancelada(s)</summary><div class="appts">${canc.map(a=>itemConsulta(a)).join('')}</div></details>`:''}
- <button class="btn ghost full" data-act="nova-consulta">${svg('plus',18)} Marcar em outro horário</button></section>`};
+ <div class="row2"><button class="btn main" data-act="nova-consulta">${svg('plus',18)} Outro horário</button><button class="btn ghost" data-act="colar">${svg('wa',18)} Colar pedido</button></div></section>`};
 
 /* seletor de paciente (busca + toque) usado nos formulários */
 function pickerHTML(st){const q=(st.q||'').toLowerCase().trim();const sel=st.pid&&pac(st.pid);
@@ -382,7 +475,7 @@ function pickerHTML(st){const q=(st.q||'').toLowerCase().trim();const sel=st.pid
  ${st.novo?`<div class="novo-pac"><label class="field">WhatsApp do novo paciente<input data-novo-tel inputmode="tel" placeholder="(27) 99999-0000" value="${esc(st.tel||'')}"></label></div>`:''}`}
 function bindPicker(root,st,repaint){
  const q=root.querySelector('[data-pick-q]');if(q)q.oninput=()=>{st.q=q.value;st.novo=false;const pos=q.selectionStart;repaint();const n=root.querySelector('[data-pick-q]');if(n){n.focus();n.setSelectionRange(pos,pos)}};
- root.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{st.pid=b.dataset.pick;st.novo=false;repaint()});
+ root.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{st.pid=b.dataset.pick;st.novo=false;if(st.onPick)st.onPick();repaint()});
  const nw=root.querySelector('[data-pick-new]');if(nw)nw.onclick=()=>{st.novo=true;repaint();root.querySelector('[data-novo-tel]')?.focus()};
  const t=root.querySelector('[data-novo-tel]');if(t)t.oninput=()=>st.tel=t.value;
  const c=root.querySelector('[data-pick-clear]');if(c)c.onclick=()=>{st.pid='';st.q='';repaint()}}
@@ -393,8 +486,12 @@ function ultimoValor(proc){const a=S.appointments.filter(x=>x.procedure===proc&&
 
 /* ---------- Consulta: quase tudo com toques ---------- */
 const PROCS=()=>[...new Set([...agCfg().procedimentos.filter(p=>p!=='Outro'),'Avaliação','Limpeza','Restauração','Canal','Extração','Clareamento','Revisão'])].slice(0,10);
-function formConsulta(a,pidPadrao,horaPadrao){const n=!a;
+function formConsulta(a,pidPadrao,horaPadrao,preset){const n=!a;
  const st=a?{...a,q:''}:{id:uid(),patientId:pidPadrao||'',pid:pidPadrao||'',date:filtro.dia>=today()?filtro.dia:today(),time:horaPadrao||'',duration:+agCfg().intervalo||30,procedure:'',status:'Agendado',value:0,notes:'',q:''};
+ if(preset)for(const k in preset)if(preset[k])st[k]=preset[k];
+ if(n&&!st.procedure&&st.pid){const e=proxEtapa(pac(st.pid));if(e)st.procedure=e.title}
+ if(st.procedure&&!st.value){const v=ultimoValor(st.procedure);if(v)st.value=v}
+ st.onPick=()=>{if(n&&!st.procedure){const e=proxEtapa(pac(st.pid));if(e){st.procedure=e.title;const v=ultimoValor(e.title);if(v&&!st.valorMexido)st.value=v}}};
  if(a)st.pid=a.patientId;
  openDlg(n?'Nova consulta':'Consulta','<div id="fc"></div>',async f=>{
    const p=pacienteDoPicker(st);if(!p)return 'Escolha o paciente (ou cadastre tocando no nome).';
@@ -402,14 +499,15 @@ function formConsulta(a,pidPadrao,horaPadrao){const n=!a;
    const conflito=S.appointments.find(x=>x.id!==st.id&&x.date===date&&x.time===time&&x.status!=='Cancelado'&&x.status!=='Faltou');if(conflito&&!confirm('Já existe consulta neste horário ('+(pac(conflito.patientId)?.name||'')+'). Salvar mesmo assim?'))return 'Escolha outro horário.';
    const proc=st.procedure==='__outro'?(f.querySelector('[name=outroProc]')?.value.trim()||''):st.procedure;
    const na={id:st.id,reqId:st.reqId||'',patientId:p.id,date,time,duration:+st.duration,procedure:proc,status:st.status,value:toCents(f.querySelector('[name=value]').value),notes:(f.querySelector('[name=notes]')?.value||'').trim()};
-   upsert('appointments',na);if(na.status==='Atendido')lancarRecebimento(na);filtro.dia=na.date;
+   upsert('appointments',na);syncEtapa(na);if(na.status==='Atendido')lancarRecebimento(na);filtro.dia=na.date;
    toast(n?'Consulta marcada.':'Consulta atualizada.');if(n&&p.phone)setTimeout(()=>avisarPaciente(p,na),80)},
   n?null:()=>{if(!confirm('Excluir esta consulta?'))return false;remove('appointments',a.id);toast('Consulta excluída.');return true},
   f=>{const box=f.querySelector('#fc');const paint=()=>{
    const dias=[...new Set([...(st.date&&!proxDiasUteis(6).includes(st.date)?[st.date]:[]),...proxDiasUteis(6)])];
    const {livres}=slotsDoDia(st.date,st.id);const horas=[...new Set([...(st.time?[st.time]:[]),...livres])].sort();
    const procs=PROCS();const outroProc=st.procedure&&st.procedure!=='__outro'&&!procs.includes(st.procedure);
-   box.innerHTML=`<div class="fstep"><span class="fl">Paciente</span>${pickerHTML(st)}</div>
+   const pe=st.pid&&proxEtapa(pac(st.pid));const pp=st.pid&&pac(st.pid);
+   box.innerHTML=`<div class="fstep"><span class="fl">Paciente</span>${pickerHTML(st)}${pp&&etapas(pp).length?`<div class="mini-tree">${etapas(pp).map(e=>`<span class="mt ${e.status}">${e.status==='feito'?svg('check',11):''}${esc(e.title)}</span>`).join('<i></i>')}</div>`:''}</div>
    <div class="fstep"><span class="fl">Dia</span>${chipsSel('date',dias,st.date,diaCurto)}<label class="mini">ou escolha outra data <input type="date" data-outra-data value="${dias.includes(st.date)?'':st.date}"></label></div>
    <div class="fstep"><span class="fl">Horário</span>${horas.length?`<div class="chips times" data-chips="time">${horas.map(h=>`<button type="button" class="chip ${h===st.time?'on':''}" data-v="${h}">${h}</button>`).join('')}</div>`:'<p class="muted">Sem horários livres neste dia.</p>'}<label class="mini">outro horário <input type="time" name="outraHora" value="${st.time&&!horas.includes(st.time)?st.time:''}"></label></div>
    <div class="fstep"><span class="fl">Procedimento</span>${chipsSel('procedure',[...procs,...(outroProc?[st.procedure]:[]),'__outro'],st.procedure,v=>v==='__outro'?'Outro…':v)}${st.procedure==='__outro'?'<input name="outroProc" placeholder="Qual procedimento?" maxlength="100">':''}</div>
@@ -434,24 +532,26 @@ VIEWS.pacientes=function(){const q=filtro.busca.toLowerCase();const mesAtual=tod
  <div class="search-box glass">${svg('search',18)}<input type="search" placeholder="Buscar por nome, telefone ou convênio" value="${esc(filtro.busca)}" data-filtro="busca"></div>
  <div class="chips scroll seg-chips">${['Todos','Retorno','Em tratamento','Aniversário'].map(v=>`<button class="chip ${filtro.pacFiltro===v?'on':''}" data-pf="${v}">${v}${v==='Retorno'&&retIds.size?` <i class="badge">${retIds.size}</i>`:''}</button>`).join('')}</div>
  <section class="card glass list-card">${list.length?list.map(itemPaciente).join(''):'<p class="muted center">Nenhum paciente aqui.</p>'}</section>
- <button class="btn ghost full" data-act="novo-paciente">${svg('plus',18)} Novo paciente</button>`};
+ <div class="row2"><button class="btn main" data-act="novo-paciente">${svg('plus',18)} Novo paciente</button><button class="btn ghost" data-act="importar">${svg('down',18)} Importar</button></div>`};
 function formPaciente(p){const n=!p;p=p||{id:uid(),name:'',phone:'',birth:'',type:'Particular',plan:'',notes:''};
  const hist=n?[]:S.appointments.filter(a=>a.patientId===p.id).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
- const trats=n?[]:S.treatments.filter(t=>t.patientId===p.id);const st={type:p.type||'Particular'};
+ const trats=n?[]:S.treatments.filter(t=>t.patientId===p.id);const st={type:p.type||'Particular',etapas:etapas(p).map(e=>({...e}))};
  const u=n?'':ultimaConsulta(p.id);
  openDlg(n?'Novo paciente':p.name,`${n?'':`<div class="pac-head">${avatar(p.name)}<div class="grow"><small>${u?'Última consulta '+dataBR(u)+' · retorno '+dataBR(addMeses(u,CONFIG.RETORNO_MESES)):'Sem consultas atendidas'}</small></div></div>
   <div class="quick">${p.phone?`<a class="btn sm wa" href="${waLink(p.phone,'Olá, '+primeiro(p.name)+'! Aqui é do consultório da '+APP_NAME+'. ')}" target="_blank" rel="noopener">${svg('wa',16)} WhatsApp</a>`:''}<button type="button" class="btn sm" data-nova-cons-pac="${p.id}">${svg('cal',16)} Marcar</button><button type="button" class="btn sm" data-novo-trat-pac="${p.id}">${svg('tooth',16)} Tratamento</button></div>`}
   <label class="field">Nome completo<input name="name" value="${esc(p.name)}" required maxlength="100" autocomplete="off"></label>
   <div class="grid2"><label class="field">WhatsApp<input name="phone" type="tel" value="${esc(p.phone)}" maxlength="20" placeholder="(27) 99999-0000"></label><label class="field">Nascimento<input name="birth" type="date" value="${p.birth||''}"></label></div>
   <div class="fstep"><span class="fl">Atendimento</span><div id="tp"></div></div>
+  <div class="fstep"><span class="fl">Acompanhamento · do início ao fim</span><div id="arv"></div></div>
   <label class="field">Observações (preferências, melhor horário)<textarea name="notes" maxlength="1000" placeholder="Opcional">${esc(p.notes||'')}</textarea></label>
   ${n?'':`<div class="fstep"><span class="fl">Histórico</span><div class="hist">${hist.length?hist.slice(0,12).map(a=>`<div><b>${dataBR(a.date)} · ${a.time}</b><span>${esc(a.procedure||'Consulta')}</span><span class="tag ${tagStatus(a.status)}">${a.status}</span></div>`).join(''):'<p class="muted">Nenhuma consulta ainda.</p>'}</div></div>
   ${trats.length?`<div class="fstep"><span class="fl">Tratamentos</span><div class="hist">${trats.map(t=>`<div><b>${esc(t.title)}</b><span>${t.done||0}/${t.sessions} sessões</span><span class="tag">${t.status}</span></div>`).join('')}</div></div>`:''}`}`,
   async f=>{const name=f.name.value.trim();if(!name)return 'Informe o nome.';if(S.patients.some(x=>x.id!==p.id&&x.name.toLowerCase()===name.toLowerCase())&&!confirm('Já existe um paciente com esse nome. Salvar mesmo assim?'))return 'Confira o nome.';
-   upsert('patients',{...p,name,phone:f.phone.value.trim(),birth:f.birth.value,type:st.type,plan:f.plan?f.plan.value.trim():'',notes:f.notes.value.trim()});toast(n?'Paciente cadastrado.':'Cadastro atualizado.')},
+   upsert('patients',{...p,...(pac(p.id)||{}),name,phone:f.phone.value.trim(),birth:f.birth.value,type:st.type,plan:f.plan?f.plan.value.trim():'',card:f.card?f.card.value.trim():(p.card||''),notes:f.notes.value.trim(),etapas:st.etapas});toast(n?'Paciente cadastrado.':'Cadastro atualizado.')},
   n?null:()=>{const c=S.appointments.filter(a=>a.patientId===p.id).length,t=S.treatments.filter(x=>x.patientId===p.id).length;if(!confirm('Excluir '+p.name+'?'+(c||t?'\n\nTambém serão excluídos: '+c+' consulta(s) e '+t+' tratamento(s). Os lançamentos do financeiro continuam.':'')+'\n\nIsso não pode ser desfeito.'))return false;
    S.appointments.filter(a=>a.patientId===p.id).forEach(a=>remove('appointments',a.id));S.treatments.filter(x=>x.patientId===p.id).forEach(x=>remove('treatments',x.id));remove('patients',p.id);toast('Paciente excluído.');return true},
-  form=>{const tp=form.querySelector('#tp');const paint=()=>{tp.innerHTML=chipsSel('type',['Particular','Convênio'],st.type)+(st.type==='Convênio'?`<input name="plan" value="${esc(p.plan||'')}" maxlength="60" placeholder="Qual convênio?" style="margin-top:8px">`:'');bindChips(tp,st,paint)};paint();
+  form=>{const tp=form.querySelector('#tp');const paint=()=>{tp.innerHTML=chipsSel('type',['Particular','Convênio'],st.type)+(st.type==='Convênio'?`<div class="grid2" style="margin-top:8px"><input name="plan" value="${esc(p.plan||'')}" maxlength="60" placeholder="Qual convênio?"><input name="card" value="${esc(p.card||'')}" maxlength="40" placeholder="Carteirinha"></div>`:'');bindChips(tp,st,paint)};paint();
+   const arv=form.querySelector('#arv');const pa=()=>{arv.innerHTML=arvoreHTML(st.etapas,n?null:p,!n);bindArvore(arv,st,n?null:p,pa)};pa();
    form.querySelectorAll('[data-nova-cons-pac]').forEach(b=>b.onclick=()=>{dlg.close();formConsulta(null,b.dataset.novaConsPac)});form.querySelectorAll('[data-novo-trat-pac]').forEach(b=>b.onclick=()=>{dlg.close();formTrat(null,b.dataset.novoTratPac)})})}
 
 /* ---------- Tratamentos ---------- */
@@ -459,7 +559,7 @@ VIEWS.tratamentos=function(){const list=S.treatments.filter(t=>filtro.trat==='To
  return `<section class="page-h"><p class="eyebrow">Processos com várias sessões</p><h1 class="title">Tratamentos</h1></section>
  <div class="chips scroll seg-chips">${['Em andamento','Pausado','Concluído','Todos'].map(v=>`<button class="chip ${filtro.trat===v?'on':''}" data-seg-trat="${v}">${v}</button>`).join('')}</div>
  <section class="card glass list-card">${list.length?list.map(itemTrat).join(''):'<p class="muted center">Nenhum tratamento aqui.</p>'}</section>
- <button class="btn ghost full" data-act="novo-trat">${svg('plus',18)} Novo tratamento</button>`};
+ <button class="btn main full" data-act="novo-trat">${svg('plus',18)} Novo tratamento</button>`};
 const TRATS=['Canal','Clareamento','Ortodontia','Implante','Prótese','Restaurações','Lentes de contato dental','Periodontia'];
 function formTrat(t,pidPadrao){const n=!t;
  const st=t?{...t,pid:t.patientId,q:''}:{id:uid(),pid:pidPadrao||'',q:'',title:'',sessions:3,done:0,budget:0,status:'Em andamento',approvedAt:today(),notes:''};
@@ -549,6 +649,7 @@ VIEWS.cuidar=function(){const c=care(),ag=c.agua[today()]||0,pct=Math.min(100,Ma
 /* ---------- Ajustes ---------- */
 VIEWS.ajustes=function(){return `<section class="page-h"><p class="eyebrow">${DEMO?'Prévia':'Conta: '+esc(COFRE?.user||'')}</p><h1 class="title">Ajustes</h1></section>
  ${cardAgendamento()}
+ <section class="card glass"><div class="card-h"><h3>${svg('down',18)} Importar agenda antiga</h3></div><p class="muted">Traga pacientes e consultas do sistema que você usava (Excel, CSV, Google Agenda). Pode repetir para atualizar: nada é duplicado.</p><button class="btn main" data-act="importar">${svg('down',18)} Importar arquivo</button></section>
  <section class="card glass"><div class="card-h"><h3>${svg('phone',18)} Instalar no iPhone</h3></div><p class="muted">No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”. O painel vira um app com ícone próprio.</p></section>
  <section class="card glass"><div class="card-h"><h3>${svg('down',18)} Cópia dos dados</h3></div><p class="muted">Baixe uma cópia uma vez por mês e guarde em local seguro.</p><button class="btn ghost" data-act="export">${svg('down',18)} Baixar cópia</button></section>
  ${DEMO?`<section class="card glass"><div class="card-h"><h3>${svg('refresh',18)} Prévia</h3></div><p class="muted">Esta é uma prévia com pacientes de exemplo. Pode mexer à vontade.</p><button class="btn ghost" data-act="demo-reset">${svg('refresh',18)} Voltar ao exemplo</button></section>`:`
@@ -579,10 +680,55 @@ setInterval(checarLembretes,60e3);
 let ultY=0;addEventListener('scroll',()=>{const f=$('.fab');if(!f)return;const y=scrollY;f.classList.toggle('esconde',y>ultY+4&&y>120);if(y<ultY-4)f.classList.remove('esconde');ultY=y},{passive:true});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
+
+/* ---------- importar a agenda antiga (CSV, Excel, Google Agenda .ics ou cópia .json) ---------- */
+const CAMPOS_IMP=[['name','Nome do paciente',/^(nome|paciente|cliente|nome do paciente|nome completo|titulo|summary|assunto)$/],['phone','Telefone',/(telefone|celular|whats|fone|contato)/],['birth','Nascimento',/(nascimento|data de nasc|aniversario|dt nasc)/],['plan','Convênio',/(convenio|plano|operadora)/],['card','Carteirinha',/(carteir|matricula)/],['date','Data da consulta',/^(data|dia|data da consulta|data do agendamento|inicio|start|dtstart|data inicio|agendamento)$/],['time','Hora',/^(hora|horario|hora inicio|inicio hora)$/],['procedure','Procedimento',/(procedimento|servico|tratamento|tipo|descricao|motivo)/]];
+function csvLinhas(txt){const d=(txt.split('\n')[0].match(/;/g)||[]).length>(txt.split('\n')[0].match(/,/g)||[]).length?';':(txt.split('\n')[0].includes('\t')?'\t':',');
+ const out=[];let row=[],cur='',q=false;for(let i=0;i<txt.length;i++){const c=txt[i];if(q){if(c==='"'&&txt[i+1]==='"'){cur+='"';i++}else if(c==='"')q=false;else cur+=c}else if(c==='"')q=true;else if(c===d){row.push(cur);cur=''}else if(c==='\n'){row.push(cur);out.push(row);row=[];cur=''}else if(c!=='\r')cur+=c}
+ if(cur||row.length){row.push(cur);out.push(row)}return out.filter(r=>r.some(x=>x.trim()))}
+function icsLinhas(txt){const un=txt.replace(/\r?\n[ \t]/g,'');const evs=un.split('BEGIN:VEVENT').slice(1);const rows=[['nome','data','hora','procedimento','telefone']];
+ for(const ev of evs){const g=k=>{const m=ev.match(new RegExp('\\n'+k+'[^:\\n]*:([^\\n]*)'));return m?m[1].replace(/\\n/g,' ').replace(/\\,/g,',').trim():''};
+  const dt=g('DTSTART');const m=dt.match(/(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?(Z?)/);if(!m)continue;let d=new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0));if(m[6])d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)));
+  const sum=g('SUMMARY'),desc=g('DESCRIPTION');const partes=sum.split(/\s[-–|]\s|:\s/);
+  rows.push([partes[0]||sum,iso(d),m[4]?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'',partes.slice(1).join(' ')||'',(desc.match(/(?:\+?55\s?)?\(?\d{2}\)?\s?9?\s?\d{4}[-\s.]?\d{4}/)||[''])[0]])}
+ return rows}
+async function xlsxLinhas(buf){if(!window.XLSX){toast('Abrindo a planilha…');await new Promise((ok,er)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=ok;sc.onerror=er;document.head.appendChild(sc)})}
+ const wb=XLSX.read(buf,{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];return XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'dd/mm/yyyy'}).map(r=>r.map(x=>x==null?'':String(x))).filter(r=>r.some(x=>x.trim()))}
+function dataImp(v){v=(v||'').trim();if(!v)return '';let m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);if(m)return (m[3].length===2?'20'+m[3]:m[3])+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');return ''}
+function horaImp(v){const m=(v||'').match(/(\d{1,2})[:h](\d{2})/);return m?m[1].padStart(2,'0')+':'+m[2]:''}
+function formImportar(){
+ openSheet('Importar agenda antiga',`<p class="muted">No sistema antigo, procure <b>Exportar</b> (pacientes ou agenda) e salve o arquivo. Funciona com planilha <b>Excel/CSV</b>, <b>Google Agenda (.ics)</b> ou a cópia <b>.json</b> deste painel. Pode importar de novo quando quiser: o que já existe é atualizado, nada é duplicado.</p>
+ <label class="btn main full big file-like">${svg('down',18)} Escolher arquivo<input type="file" id="fimp" accept=".csv,.txt,.xlsx,.xls,.ics,.json,text/csv,text/calendar,application/json"></label><div id="impOut"></div>`,d=>{
+ const out=d.querySelector('#impOut');
+ d.querySelector('#fimp').onchange=async e=>{const f=e.target.files[0];if(!f)return;out.innerHTML='<p class="muted center">Lendo o arquivo…</p>';
+  try{const nome=f.name.toLowerCase();let rows;
+   if(nome.endsWith('.json')){const j=JSON.parse(await f.text());const dados=j.dados||j;if(!dados.patients)throw Error('json');S=merge(S,{...dados,updatedAt:Date.now()});persist();fecharDlg();render();return toast('Cópia importada: '+dados.patients.length+' pacientes.')}
+   if(nome.endsWith('.xlsx')||nome.endsWith('.xls'))rows=await xlsxLinhas(await f.arrayBuffer());
+   else{let t=await f.text();if(t.includes('�')){t=new TextDecoder('windows-1252').decode(await f.arrayBuffer())}rows=nome.endsWith('.ics')||t.includes('BEGIN:VCALENDAR')?icsLinhas(t):csvLinhas(t)}
+   if(rows.length<2)throw Error('vazio');mostrarMapa(rows)}catch(x){out.innerHTML='<p class="err">Não consegui ler esse arquivo. Me mande um exemplo que eu ajusto.</p>'}};
+ function mostrarMapa(rows){const cab=rows[0].map(h=>normTxt(h).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim());const mapa={};
+  for(const [k,,re] of CAMPOS_IMP){const i=cab.findIndex((h,ix)=>re.test(h)&&!Object.values(mapa).includes(ix));if(i>=0)mapa[k]=i}
+  const corpo=rows.slice(1);
+  const paint=()=>{const prev=corpo.slice(0,3);
+   out.innerHTML=`<div class="lido glass"><p class="sheet-sub">${corpo.length} linhas encontradas · confira as colunas</p>
+   ${CAMPOS_IMP.map(([k,l])=>`<label class="field">${l}<select data-map="${k}"><option value="">— não tem —</option>${rows[0].map((h,i)=>`<option value="${i}" ${mapa[k]===i?'selected':''}>${esc(h||'Coluna '+(i+1))}${prev[0]&&prev[0][i]?' · ex.: '+esc(String(prev[0][i]).slice(0,24)):''}</option>`).join('')}</select></label>`).join('')}
+   <button class="btn main full big" data-imp-ok>${svg('check',18)} Importar e salvar</button></div>`;
+   out.querySelectorAll('[data-map]').forEach(sel=>sel.onchange=()=>{mapa[sel.dataset.map]=sel.value===''?undefined:+sel.value});
+   out.querySelector('[data-imp-ok]').onclick=()=>{if(mapa.name==null)return toast('Escolha a coluna do nome.');let np=0,up=0,nc=0;
+    const g=(r,k)=>mapa[k]==null?'':String(r[mapa[k]]||'').trim();
+    for(const r of corpo){const name=g(r,'name').replace(/\s+/g,' ').slice(0,100);if(!name)continue;const v={name,phone:g(r,'phone'),plan:g(r,'plan'),card:g(r,'card')};
+     let p=acharPaciente(v);const birth=dataImp(g(r,'birth'));
+     if(!p){p={id:uid(),name,phone:v.phone,birth,type:v.plan&&normTxt(v.plan)!=='particular'?'Convênio':'Particular',plan:v.plan&&normTxt(v.plan)!=='particular'?v.plan.slice(0,60):'',card:v.card,notes:'Importado da agenda antiga',etapas:[]};upsert('patients',p);np++}
+     else{const upd={...p};let mud=false;for(const k of ['phone','card'])if(!upd[k]&&v[k]){upd[k]=v[k];mud=true}if(!upd.birth&&birth){upd.birth=birth;mud=true}if(mud){upsert('patients',upd);up++}}
+     const date=dataImp(g(r,'date')),time=horaImp(g(r,'time'))||horaImp(g(r,'date'));
+     if(date){if(!S.appointments.some(a=>a.patientId===p.id&&a.date===date&&(!time||a.time===time))){upsert('appointments',{id:uid(),patientId:p.id,date,time:time||'08:00',duration:+agCfg().intervalo||30,procedure:g(r,'procedure').slice(0,100),status:date<today()?'Atendido':'Agendado',value:0,notes:'Importado'});nc++}}}
+    fecharDlg();render();toast(`Importado: ${np} paciente(s) novo(s), ${up} atualizado(s), ${nc} consulta(s).`)}};
+  paint()}})}
+
 /* ---------- ligações ---------- */
 function bindMain(m){
  m.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>{const a=b.dataset.act;
-  if(a==='nova-consulta')formConsulta();else if(a==='novo-paciente')formPaciente();else if(a==='novo-trat')formTrat();
+  if(a==='nova-consulta')formConsulta();else if(a==='colar')formColar();else if(a==='importar')formImportar();else if(a==='novo-paciente')formPaciente();else if(a==='novo-trat')formTrat();
   else if(a==='nova-saida')formEntradaFin(null,'Saída');else if(a==='nova-entrada')formEntradaFin(null,'Entrada');
   else if(a==='cfg-agenda')formAgendaCfg();
   else if(a==='copiar-link'){navigator.clipboard?.writeText(LINK_AGENDAR).then(()=>toast('Link copiado. Coloque na bio do Instagram e no WhatsApp.'),()=>prompt('Copie o link:',LINK_AGENDAR))}
@@ -600,8 +746,8 @@ function bindMain(m){
  m.querySelectorAll('[data-edit-ent]').forEach(b=>b.onclick=()=>formEntradaFin(S.entries.find(x=>x.id===b.dataset.editEnt)));
  m.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>formConsulta(null,'',b.dataset.slot));
  m.querySelectorAll('[data-confirmou]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{if(confirm('O paciente confirmou? Marcar como "Confirmado"?')){const a=S.appointments.find(x=>x.id===b.dataset.confirmou);upsert('appointments',{...a,status:'Confirmado'});render()}},500)));
- m.querySelectorAll('[data-atendido]').forEach(b=>b.onclick=()=>{const a=S.appointments.find(x=>x.id===b.dataset.atendido);const na={...a,status:'Atendido'};upsert('appointments',na);if(na.value>0)lancarRecebimento(na);else toast('Consulta marcada como atendida.');render()});
- m.querySelectorAll('[data-faltou]').forEach(b=>b.onclick=()=>{const a=S.appointments.find(x=>x.id===b.dataset.faltou);upsert('appointments',{...a,status:'Faltou'});toast('Marcado como falta. Use o botão verde para remarcar.');render()});
+ m.querySelectorAll('[data-atendido]').forEach(b=>b.onclick=()=>{const a=S.appointments.find(x=>x.id===b.dataset.atendido);const na={...a,status:'Atendido'};upsert('appointments',na);syncEtapa(na);if(na.value>0)lancarRecebimento(na);else toast('Consulta marcada como atendida.');render()});
+ m.querySelectorAll('[data-faltou]').forEach(b=>b.onclick=()=>{const a=S.appointments.find(x=>x.id===b.dataset.faltou);const nf={...a,status:'Faltou'};upsert('appointments',nf);syncEtapa(nf);toast('Marcado como falta. Use o botão verde para remarcar.');render()});
  m.querySelectorAll('[data-contatado]').forEach(b=>b.addEventListener('click',()=>{const p=pac(b.dataset.contatado);upsert('patients',{...p,returnContactedAt:today()});setTimeout(render,400)}));
  m.querySelectorAll('[data-pago]').forEach(b=>b.onclick=()=>{const e=S.entries.find(x=>x.id===b.dataset.pago);upsert('entries',{...e,paid:true,date:e.date<=today()?e.date:today()});toast(e.type==='Entrada'?'Marcado como recebido.':'Marcado como pago.');render()});
  m.querySelectorAll('[data-sessao]').forEach(b=>b.onclick=()=>{const t=S.treatments.find(x=>x.id===b.dataset.sessao);const done=Math.min(t.sessions,(t.done||0)+1);upsert('treatments',{...t,done,status:done>=t.sessions?'Concluído':t.status});toast(done>=t.sessions?'Tratamento concluído! 🎉':'Sessão '+done+' de '+t.sessions+' registrada.');render()});
@@ -610,6 +756,8 @@ function bindMain(m){
  m.querySelectorAll('[data-sug-task]').forEach(b=>b.onclick=()=>{addTarefa(b.dataset.sugTask);render()});
  m.querySelectorAll('[data-form=tarefa]').forEach(f=>f.onsubmit=e=>{e.preventDefault();addTarefa(f.t.value);render();setTimeout(()=>$('[data-form=tarefa] input')?.focus(),50)});
  m.querySelectorAll('[data-dia]').forEach(b=>b.onclick=()=>{filtro.dia=b.dataset.dia;render()});
+ m.querySelectorAll('[data-marcar-pac]').forEach(b=>b.onclick=()=>formConsulta(null,b.dataset.marcarPac));
+ m.querySelectorAll('[data-ver-ret]').forEach(b=>b.onclick=()=>{filtro.verRet=true;render()});
  m.querySelectorAll('[data-sem]').forEach(b=>b.onclick=()=>{filtro.dia=addDias(filtro.dia,+b.dataset.sem);render()});
  m.querySelectorAll('[data-seg-trat]').forEach(b=>b.onclick=()=>{filtro.trat=b.dataset.segTrat;render()});
  m.querySelectorAll('[data-pf]').forEach(b=>{if(!b.dataset.page)b.onclick=()=>{filtro.pacFiltro=b.dataset.pf;render()}});
@@ -670,7 +818,7 @@ function abrirPedido(){const r=PEDIDO;PEDIDO=null;try{sessionStorage.removeItem(
   <p class="note">Ao salvar, a consulta entra na agenda como <b>Confirmado</b> e o horário some da página de agendamento.</p>`,
  async f=>{const c=S.appointments.find(a=>a.date===f.date.value&&a.time===f.time.value&&a.status!=='Cancelado'&&a.status!=='Faltou');if(c&&!confirm('Esse horário já está ocupado. Lançar mesmo assim?'))return 'Escolha outro horário.';
   let p=existente;if(!p){p={id:uid(),name:r.n.trim().slice(0,100),phone:r.t||'',birth:'',type:'Particular',plan:'',notes:'Veio pela página de agendamento'};upsert('patients',p)}
-  const a={id:uid(),reqId:r.id||'',patientId:p.id,date:f.date.value,time:f.time.value,duration:+f.duration.value,procedure:f.procedure.value.trim(),status:'Confirmado',value:0,notes:r.o?('Pedido: '+r.o).slice(0,300):''};upsert('appointments',a);
+  const a={id:uid(),reqId:r.id||'',patientId:p.id,date:f.date.value,time:f.time.value,duration:+f.duration.value,procedure:f.procedure.value.trim(),status:'Confirmado',value:0,notes:r.o?('Pedido: '+r.o).slice(0,300):''};upsert('appointments',a);syncEtapa(a);
   filtro.dia=a.date;setTimeout(()=>avisarPaciente(p,a),60)})}
 function avisarPaciente(p,a){
  openSheet('Consulta marcada',`<div class="done-anim">${svg('check',34)}</div><p class="center"><b>${esc(p.name)}</b><br><span class="muted">${esc(diaSemana(a.date))} às ${a.time}${a.procedure?' · '+esc(a.procedure):''}</span></p>
