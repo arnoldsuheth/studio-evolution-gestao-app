@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dra. Ana Luiza Costa · Logo em luz</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1c120b">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* A logo não foi redesenhada: cada camada é o próprio arquivo original da logo usado como máscara.
+   Traços, fontes e frases ficam exatamente como na original; só a luz, o material e a profundidade mudam. */
+:root{--mx:0;--my:0;--glow:.55}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#1c120b;color:#f4e6d4;font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+body{display:grid;place-items:center}
+.stage{position:fixed;inset:0;background:radial-gradient(90% 70% at 50% 42%,#4a2f1b 0%,#2a1a0f 48%,#140c07 100%);transition:background 1s}
+.stage::before{content:'';position:absolute;inset:-20%;background:conic-gradient(from 200deg at 50% 45%,transparent,rgba(214,170,120,.12),transparent 30%,rgba(255,226,190,.08),transparent 60%);animation:gira 28s linear infinite;filter:blur(30px)}
+@keyframes gira{to{transform:rotate(360deg)}}
+canvas#pó{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+.scene{position:relative;width:min(94vw,760px);aspect-ratio:1928/1180;perspective:1100px;z-index:2}
+.card{position:absolute;inset:0;transform-style:preserve-3d;transform:rotateX(calc(var(--my)*-10deg)) rotateY(calc(var(--mx)*14deg));transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.glass{position:absolute;inset:0;border-radius:clamp(22px,4vw,40px);background:linear-gradient(140deg,rgba(255,240,220,.16),rgba(255,240,220,.04) 40%,rgba(255,240,220,.1));border:1px solid rgba(255,235,210,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -30px 60px rgba(0,0,0,.18),0 40px 90px -30px rgba(0,0,0,.8),0 0 120px -20px rgba(214,170,120,calc(var(--glow)*.6));transform:translateZ(0);overflow:hidden}
+.glass::before{content:'';position:absolute;inset:0;background:radial-gradient(60% 50% at calc(50% + var(--mx)*40%) calc(30% + var(--my)*40%),rgba(255,245,230,.28),transparent 70%)}
+.glass::after{content:'';position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,250,240,.22),transparent);transform:skewX(-18deg);animation:varre 7s ease-in-out infinite 3s}
+@keyframes varre{0%,60%{left:-40%}100%{left:130%}}
+.borda{position:absolute;inset:-1px;border-radius:inherit;padding:1.5px;background:conic-gradient(from var(--a,0deg),transparent 0 60%,rgba(255,220,170,.9) 75%,transparent 90%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:borda 6s linear infinite}
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes borda{to{--a:360deg}}
+.logo{position:absolute;left:8%;right:8%;top:12%;aspect-ratio:1928/780;transform-style:preserve-3d}
+.layer{position:absolute;inset:0;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+ background:linear-gradient(115deg,#7a4a1f 0%,#c9965c 18%,#fff1d6 28%,#d8a868 38%,#8a5a2b 52%,#e9c48f 66%,#fff6e4 74%,#b07a43 86%,#6e4320 100%);background-size:260% 100%;animation:ouro 9s ease-in-out infinite alternate;
+ filter:drop-shadow(0 1px 0 rgba(255,240,215,.5)) drop-shadow(0 6px 10px rgba(0,0,0,.45))}
+@keyframes ouro{from{background-position:0% 50%}to{background-position:100% 50%}}
+.l-mono{-webkit-mask-image:url(mono.png);mask-image:url(mono.png);transform:translateZ(46px)}
+.l-dra{-webkit-mask-image:url(dra.png);mask-image:url(dra.png);transform:translateZ(38px)}
+.l-nome{-webkit-mask-image:url(nome.png);mask-image:url(nome.png);transform:translateZ(40px)}
+.l-sub{-webkit-mask-image:url(sub.png);mask-image:url(sub.png);transform:translateZ(34px)}
+.l-mono,.l-dra,.l-nome,.l-sub{animation:ouro 9s ease-in-out infinite alternate,surge 1.6s cubic-bezier(.2,.8,.2,1) both}
+.l-mono{animation-delay:0s,.2s}.l-dra{animation-delay:0s,.9s}.l-nome{animation-delay:0s,1.2s}.l-sub{animation-delay:0s,1.6s}
+@keyframes surge{from{opacity:0;clip-path:inset(0 100% 0 0);filter:blur(6px)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+.sombra{position:absolute;inset:0;-webkit-mask:url(logo.png) center/100% 100% no-repeat;mask:url(logo.png) center/100% 100% no-repeat;background:#000;opacity:.35;filter:blur(14px);transform:translateZ(32px) translateY(3px)}
+.ref-box{position:absolute;left:0;right:0;top:69%;bottom:0;overflow:hidden;border-radius:0 0 clamp(22px,4vw,40px) clamp(22px,4vw,40px);transform:translateZ(20px);-webkit-mask:linear-gradient(180deg,rgba(0,0,0,.9),transparent 75%);mask:linear-gradient(180deg,rgba(0,0,0,.9),transparent 75%);pointer-events:none}
+.reflexo{position:absolute;left:8%;right:8%;top:0;aspect-ratio:1928/780;transform:scaleY(-1);transform-origin:50% 0;-webkit-mask:url(logo.png) center/100% 100% no-repeat;mask:url(logo.png) center/100% 100% no-repeat;background:linear-gradient(115deg,#c9965c,#fff1d6,#b07a43);opacity:.16;filter:blur(1.2px)}
+/* temas */
+body.vidro .layer{background:linear-gradient(115deg,rgba(255,255,255,.35),rgba(255,255,255,.9) 30%,rgba(210,235,255,.5) 45%,rgba(255,255,255,.95) 60%,rgba(255,255,255,.3));background-size:260% 100%;filter:drop-shadow(0 0 1px rgba(255,255,255,.9)) drop-shadow(0 8px 14px rgba(0,0,0,.5))}
+body.vidro .stage{background:radial-gradient(90% 70% at 50% 42%,#5b4636 0%,#2b2019 50%,#120c08 100%)}
+body.nude .stage{background:radial-gradient(90% 70% at 50% 40%,#fbf4ea 0%,#efe2d1 50%,#d9c3a8 100%)}
+body.nude{color:#5a3a1e}
+body.nude .layer{background:linear-gradient(115deg,#6e4320,#a8743f 25%,#e6c39a 35%,#8b5a2b 50%,#c99a68 70%,#6e4320);background-size:260% 100%;filter:drop-shadow(0 1px 0 rgba(255,255,255,.8)) drop-shadow(0 8px 10px rgba(110,67,32,.3))}
+body.nude .glass{background:linear-gradient(140deg,rgba(255,255,255,.7),rgba(255,255,255,.35));border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 40px 80px -30px rgba(110,67,32,.45)}
+body.nude .sombra{opacity:.07;filter:blur(18px)}body.nude .reflexo{opacity:.12}
+body.nude canvas#pó{opacity:.5;mix-blend-mode:multiply}
+/* controles */
+.ui{position:fixed;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));display:grid;justify-items:center;gap:10px;z-index:5;padding:0 16px}
+.temas{display:flex;gap:6px;padding:6px;border-radius:99px;background:rgba(255,240,220,.1);border:1px solid rgba(255,235,210,.22);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.temas button{border:0;background:none;color:inherit;font:inherit;font-size:13px;font-weight:600;padding:9px 16px;border-radius:99px;cursor:pointer;opacity:.75;transition:all .3s}
+.temas button.on{opacity:1;background:linear-gradient(160deg,#d6a46a,#8b5a2b);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 6px 18px -6px rgba(214,164,106,.8)}
+body.nude .temas{background:rgba(255,255,255,.55);border-color:rgba(139,90,43,.2)}
+.dica{font-size:12px;opacity:.6;text-align:center}
+.mov{border:1px solid rgba(255,235,210,.3);background:rgba(255,240,220,.08);color:inherit;font:inherit;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:99px;cursor:pointer}
+.topo{position:fixed;top:calc(16px + env(safe-area-inset-top));left:0;right:0;text-align:center;font-size:11px;letter-spacing:.32em;text-transform:uppercase;opacity:.55;z-index:5}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="stage"></div>
+<canvas id="pó"></canvas>
+<p class="topo">Prévia · Studio Evolution Tech</p>
+<div class="scene" id="scene">
+ <div class="card" id="card">
+  <div class="glass"><span class="borda"></span></div>
+  <div class="logo">
+   <div class="sombra"></div>
+   <div class="layer l-mono" role="img" aria-label="Monograma AL"></div>
+   <div class="layer l-dra"></div>
+   <div class="layer l-nome" role="img" aria-label="Dra Ana Luiza Costa"></div>
+   <div class="layer l-sub" role="img" aria-label="Cirurgiã dentista"></div>
+  </div>
+  
+ </div>
+</div>
+<div class="ui">
+ <div class="temas"><button data-t="ouro" class="on">Ouro</button><button data-t="vidro">Vidro</button><button data-t="nude">Nude</button></div>
+ <button class="mov hidden" id="mov">Ativar movimento do celular</button>
+ <p class="dica" id="dica">Mova o dedo ou o mouse sobre a logo</p>
+</div>
+<script>
+(()=>{const r=document.documentElement,scene=document.getElementById('scene');let tx=0,ty=0,cx=0,cy=0,auto=true,t0=performance.now();
+function alvo(x,y){tx=Math.max(-1,Math.min(1,x));ty=Math.max(-1,Math.min(1,y));auto=false;clearTimeout(alvo.t);alvo.t=setTimeout(()=>auto=true,3500)}
+addEventListener('pointermove',e=>alvo((e.clientX/innerWidth-.5)*2,(e.clientY/innerHeight-.5)*2),{passive:true});
+addEventListener('touchmove',e=>{const t=e.touches[0];alvo((t.clientX/innerWidth-.5)*2,(t.clientY/innerHeight-.5)*2)},{passive:true});
+function orient(e){if(e.gamma==null)return;alvo(e.gamma/30,(e.beta-45)/30)}
+const mov=document.getElementById('mov');
+if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function'){mov.classList.remove('hidden');mov.onclick=()=>DeviceOrientationEvent.requestPermission().then(s=>{if(s==='granted'){addEventListener('deviceorientation',orient);mov.remove();document.getElementById('dica').textContent='Incline o celular'}}).catch(()=>{})}
+else if(window.DeviceOrientationEvent)addEventListener('deviceorientation',orient);
+(function loop(now){if(auto){const k=(now-t0)/1000;tx=Math.sin(k*.5)*.55;ty=Math.cos(k*.37)*.35}cx+=(tx-cx)*.06;cy+=(ty-cy)*.06;r.style.setProperty('--mx',cx.toFixed(4));r.style.setProperty('--my',cy.toFixed(4));requestAnimationFrame(loop)})(t0);
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));document.body.className=b.dataset.t==='ouro'?'':b.dataset.t});
+/* pó dourado */
+const c=document.getElementById('pó'),g=c.getContext('2d');let W,H,P=[];const dpr=Math.min(2,devicePixelRatio||1);
+function rs(){W=c.width=innerWidth*dpr;H=c.height=innerHeight*dpr;P=[...Array(Math.round(innerWidth*innerHeight/9000))].map(()=>({x:Math.random()*W,y:Math.random()*H,r:(Math.random()*1.6+.4)*dpr,v:(Math.random()*.25+.05)*dpr,a:Math.random()*Math.PI*2,f:Math.random()*.02+.005}))}
+rs();addEventListener('resize',rs);
+(function pó(){g.clearRect(0,0,W,H);for(const p of P){p.y-=p.v;p.a+=p.f;p.x+=Math.sin(p.a)*.3*dpr;if(p.y<-5){p.y=H+5;p.x=Math.random()*W}const al=.25+Math.sin(p.a*2)*.25+.25;g.beginPath();g.fillStyle=`rgba(255,${210+Math.round(Math.sin(p.a)*20)},160,${al})`;g.shadowColor='rgba(255,210,150,.9)';g.shadowBlur=6*dpr;g.arc(p.x,p.y,p.r,0,7);g.fill()}requestAnimationFrame(pó)})();
+})();
+</script>
+<style>.hidden{display:none!important}</style>
+</body>
+</html>
