@@ -338,6 +338,27 @@ function formColar(){
   d.querySelector('[data-ler]').onclick=ler;
   d.querySelector('[data-colar]').onclick=async()=>{try{const t=await navigator.clipboard.readText();if(!t)throw 0;ta.value=t;ler()}catch{toast('Toque na caixa de texto, segure e escolha Colar.');ta.focus()}}})}
 
+/* ---------- tema (Ouro escuro é o padrão; Claro opcional) ---------- */
+const TEMA_KEY='clin_'+CONFIG.SLUG+'_tema';
+function temaAtual(){try{return localStorage.getItem(TEMA_KEY)||'ouro'}catch{return 'ouro'}}
+function aplicarTema(t){document.body.classList.toggle('ouro',t==='ouro');document.querySelector('meta[name=theme-color]')?.setAttribute('content',t==='ouro'?'#1c120b':'#f3ebe1');try{localStorage.setItem(TEMA_KEY,t)}catch{}}
+aplicarTema(temaAtual());
+
+/* ---------- logo 3D em movimento (mesma logo original, em camadas) ---------- */
+const logo3D=()=>`<div class="l3d-scene" id="l3d"><div class="l3d-card"><span class="l3d-glass"><i class="l3d-borda"></i></span><div class="l3d-logo"><i class="l3d-sombra"></i><i class="l3d-l l3d-mono"></i><i class="l3d-l l3d-dra"></i><i class="l3d-l l3d-nome" role="img" aria-label="${esc(APP_NAME)}"></i><i class="l3d-l l3d-sub"></i></div></div></div>`;
+let l3dRaf=0,l3dT=0,l3dX=0,l3dY=0,l3dCx=0,l3dCy=0,l3dAuto=true,l3dTo=0;
+function l3dAlvo(x,y){l3dX=Math.max(-1,Math.min(1,x));l3dY=Math.max(-1,Math.min(1,y));l3dAuto=false;clearTimeout(l3dTo);l3dTo=setTimeout(()=>l3dAuto=true,3500)}
+addEventListener('pointermove',e=>{if($('#l3d'))l3dAlvo((e.clientX/innerWidth-.5)*2,(e.clientY/innerHeight-.5)*2)},{passive:true});
+addEventListener('deviceorientation',e=>{if($('#l3d')&&e.gamma!=null)l3dAlvo(e.gamma/30,(e.beta-45)/30)});
+function l3dLoop(now){const el=$('#l3d');if(!el){l3dRaf=0;return}if(!l3dT)l3dT=now;if(l3dAuto){const k=(now-l3dT)/1000;l3dX=Math.sin(k*.5)*.55;l3dY=Math.cos(k*.37)*.35}l3dCx+=(l3dX-l3dCx)*.06;l3dCy+=(l3dY-l3dCy)*.06;el.style.setProperty('--mx',l3dCx.toFixed(4));el.style.setProperty('--my',l3dCy.toFixed(4));l3dRaf=requestAnimationFrame(l3dLoop)}
+function l3dStart(){if(!l3dRaf&&$('#l3d')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)l3dRaf=requestAnimationFrame(l3dLoop)}
+
+/* pó dourado no fundo (tema Ouro) */
+(function(){const c=document.createElement('canvas');c.id='po';document.body.prepend(c);const g=c.getContext('2d');let W,H,P=[];const dpr=Math.min(2,devicePixelRatio||1);
+ function rs(){W=c.width=innerWidth*dpr;H=c.height=innerHeight*dpr;P=[...Array(Math.round(Math.min(90,innerWidth*innerHeight/12000)))].map(()=>({x:Math.random()*W,y:Math.random()*H,r:(Math.random()*1.4+.4)*dpr,v:(Math.random()*.2+.04)*dpr,a:Math.random()*7,f:Math.random()*.02+.005}))}
+ rs();addEventListener('resize',rs);
+ (function loop(){if(document.body.classList.contains('ouro')&&!document.hidden){g.clearRect(0,0,W,H);for(const p of P){p.y-=p.v;p.a+=p.f;p.x+=Math.sin(p.a)*.25*dpr;if(p.y<-5){p.y=H+5;p.x=Math.random()*W}g.beginPath();g.fillStyle=`rgba(255,${205+Math.round(Math.sin(p.a)*20)},150,${.18+Math.sin(p.a*2)*.16+.16})`;g.arc(p.x,p.y,p.r,0,7);g.fill()}}else g.clearRect(0,0,W,H);requestAnimationFrame(loop)})()})();
+
 /* ---------- casca: topo, menu flutuante, botão + ---------- */
 const PAGES={inicio:['Início','home'],agenda:['Agenda','cal'],pacientes:['Pacientes','users'],financeiro:['Finanças','money'],cuidar:['Para mim','heart'],tratamentos:['Tratamentos','tooth'],ajustes:['Ajustes','gear']};
 const DOCK=['inicio','agenda','pacientes','financeiro','cuidar'];
@@ -359,7 +380,7 @@ function moverInd(){const b=app.querySelector(`.dock [data-tab="${tab}"]`)||app.
 const VIEWS={};
 function render(anim){const m=$('#main');if(!m||!S)return;
  app.querySelectorAll('.dock [data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));app.querySelector('.dock [data-act=mais]')?.classList.toggle('on',!DOCK.includes(tab));moverInd();const tt=$('#topTitle');if(tt)tt.textContent=tab==='inicio'?'Consultório':PAGES[tab][0];
- m.innerHTML=VIEWS[tab]();if(anim){m.classList.remove('enter');void m.offsetWidth;m.classList.add('enter')}bindMain(m)}
+ m.innerHTML=VIEWS[tab]();if(anim){m.classList.remove('enter');void m.offsetWidth;m.classList.add('enter')}bindMain(m);l3dStart()}
 
 /* folha (sheet) simples para menus */
 function openSheet(title,html,bind){dlg.innerHTML=`<div class="sheet"><div class="grab"></div><div class="mh"><h2>${esc(title)}</h2><button type="button" class="icon-btn ghost" data-close aria-label="Fechar">${svg('x',18)}</button></div><div class="mb">${html}</div></div>`;
@@ -411,7 +432,7 @@ VIEWS.inicio=function(){const hoje=S.appointments.filter(a=>a.date===today()&&a.
   ...amanha.map(a=>({ico:'bell',t:'Confirmar '+primeiro(pac(a.patientId)?.name)+' · amanhã '+a.time,act:`<a class="chip sm wa" href="${waLink(pac(a.patientId)?.phone,MSG.confirmar(pac(a.patientId),a))}" target="_blank" rel="noopener" data-confirmou="${a.id}">${svg('wa',14)} Enviar</a>`})),
   ...aniv.map(p=>({ico:'cake',t:'Aniversário de '+primeiro(p.name)+' hoje',act:`<a class="chip sm wa" href="${waLink(p.phone,MSG.aniversario(p))}" target="_blank" rel="noopener">${svg('wa',14)} Parabéns</a>`})),
   ...atras.slice(0,3).map(e=>({ico:'money',t:e.desc+' · '+money(e.value)+' em atraso',act:`<button class="chip sm" data-pago="${e.id}">${svg('check',14)} Recebi</button>`}))];
- return `<section class="hero"><div class="hero-logo"><span class="logo-ouro" role="img" aria-label="${esc(APP_NAME)}"></span></div>
+ return `<section class="hero">${document.body.classList.contains('ouro')?logo3D():`<div class="hero-logo"><span class="logo-ouro" role="img" aria-label="${esc(APP_NAME)}"></span></div>`}
   <p class="eyebrow">${diaSemana(today())}</p><h1 class="title">${saud}, <em>${esc(CONFIG.PRO_NAME)}</em></h1></section>
  <div class="stats">
   <button class="stat glass" data-page="agenda"><small>Consultas hoje</small><strong>${hoje.length}</strong><span>${hoje.filter(a=>a.status==='Confirmado'||a.status==='Atendido').length} confirmada(s)</span></button>
@@ -648,6 +669,7 @@ VIEWS.cuidar=function(){const c=care(),ag=c.agua[today()]||0,pct=Math.min(100,Ma
 
 /* ---------- Ajustes ---------- */
 VIEWS.ajustes=function(){return `<section class="page-h"><p class="eyebrow">${DEMO?'Prévia':'Conta: '+esc(COFRE?.user||'')}</p><h1 class="title">Ajustes</h1></section>
+ <section class="card glass"><div class="card-h"><h3>${svg('sparkle',18)} Aparência</h3></div><div class="chips"><button class="chip ${temaAtual()==='ouro'?'on':''}" data-tema="ouro">Ouro</button><button class="chip ${temaAtual()==='claro'?'on':''}" data-tema="claro">Claro</button></div><p class="note">Vale só para este aparelho.</p></section>
  ${cardAgendamento()}
  <section class="card glass"><div class="card-h"><h3>${svg('down',18)} Importar agenda antiga</h3></div><p class="muted">Traga pacientes e consultas do sistema que você usava (Excel, CSV, Google Agenda). Pode repetir para atualizar: nada é duplicado.</p><button class="btn main" data-act="importar">${svg('down',18)} Importar arquivo</button></section>
  <section class="card glass"><div class="card-h"><h3>${svg('phone',18)} Instalar no iPhone</h3></div><p class="muted">No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”. O painel vira um app com ícone próprio.</p></section>
@@ -756,6 +778,7 @@ function bindMain(m){
  m.querySelectorAll('[data-sug-task]').forEach(b=>b.onclick=()=>{addTarefa(b.dataset.sugTask);render()});
  m.querySelectorAll('[data-form=tarefa]').forEach(f=>f.onsubmit=e=>{e.preventDefault();addTarefa(f.t.value);render();setTimeout(()=>$('[data-form=tarefa] input')?.focus(),50)});
  m.querySelectorAll('[data-dia]').forEach(b=>b.onclick=()=>{filtro.dia=b.dataset.dia;render()});
+ m.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{aplicarTema(b.dataset.tema);render()});
  m.querySelectorAll('[data-marcar-pac]').forEach(b=>b.onclick=()=>formConsulta(null,b.dataset.marcarPac));
  m.querySelectorAll('[data-ver-ret]').forEach(b=>b.onclick=()=>{filtro.verRet=true;render()});
  m.querySelectorAll('[data-sem]').forEach(b=>b.onclick=()=>{filtro.dia=addDias(filtro.dia,+b.dataset.sem);render()});
