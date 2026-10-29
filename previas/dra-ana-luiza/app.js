@@ -340,8 +340,10 @@ function formColar(){
 
 /* ---------- tema (Ouro escuro é o padrão; Claro opcional) ---------- */
 const TEMA_KEY='clin_'+CONFIG.SLUG+'_tema';
-function temaAtual(){try{return localStorage.getItem(TEMA_KEY)||'ouro'}catch{return 'ouro'}}
-function aplicarTema(t){document.body.classList.toggle('ouro',t==='ouro');document.querySelector('meta[name=theme-color]')?.setAttribute('content',t==='ouro'?'#1c120b':'#f3ebe1');try{localStorage.setItem(TEMA_KEY,t)}catch{}}
+const TEMAS={ouro:['Ouro','#1c120b'],vidro:['Vidro','#2b2019'],nude:['Nude','#f3ebe1']};
+function temaAtual(){let t='ouro';try{t=localStorage.getItem(TEMA_KEY)||'ouro'}catch{}if(t==='claro')t='nude';return TEMAS[t]?t:'ouro'}
+function aplicarTema(t){if(!TEMAS[t])t='ouro';const b=document.body;b.classList.toggle('ouro',t!=='nude');b.classList.toggle('vidro',t==='vidro');document.querySelector('meta[name=theme-color]')?.setAttribute('content',TEMAS[t][1]);try{localStorage.setItem(TEMA_KEY,t)}catch{}}
+const seletorTema=()=>`<div class="temas">${Object.entries(TEMAS).map(([k,[n]])=>`<button class="tema-op t-${k} ${temaAtual()===k?'on':''}" data-tema="${k}"><i></i><b>${n}</b></button>`).join('')}</div>`;
 aplicarTema(temaAtual());
 
 /* ---------- logo 3D em movimento (mesma logo original, em camadas) ---------- */
@@ -357,7 +359,7 @@ function l3dStart(){if(!l3dRaf&&$('#l3d')&&!matchMedia('(prefers-reduced-motion:
 (function(){const c=document.createElement('canvas');c.id='po';document.body.prepend(c);const g=c.getContext('2d');let W,H,P=[];const dpr=Math.min(2,devicePixelRatio||1);
  function rs(){W=c.width=innerWidth*dpr;H=c.height=innerHeight*dpr;P=[...Array(Math.round(Math.min(90,innerWidth*innerHeight/12000)))].map(()=>({x:Math.random()*W,y:Math.random()*H,r:(Math.random()*1.4+.4)*dpr,v:(Math.random()*.2+.04)*dpr,a:Math.random()*7,f:Math.random()*.02+.005}))}
  rs();addEventListener('resize',rs);
- (function loop(){if(document.body.classList.contains('ouro')&&!document.hidden){g.clearRect(0,0,W,H);for(const p of P){p.y-=p.v;p.a+=p.f;p.x+=Math.sin(p.a)*.25*dpr;if(p.y<-5){p.y=H+5;p.x=Math.random()*W}g.beginPath();g.fillStyle=`rgba(255,${205+Math.round(Math.sin(p.a)*20)},150,${.18+Math.sin(p.a*2)*.16+.16})`;g.arc(p.x,p.y,p.r,0,7);g.fill()}}else g.clearRect(0,0,W,H);requestAnimationFrame(loop)})()})();
+ (function loop(){if(document.body.classList.contains('ouro')&&!document.hidden){g.clearRect(0,0,W,H);for(const p of P){p.y-=p.v;p.a+=p.f;p.x+=Math.sin(p.a)*.25*dpr;if(p.y<-5){p.y=H+5;p.x=Math.random()*W}g.beginPath();const vd=document.body.classList.contains('vidro');g.fillStyle=vd?`rgba(255,255,255,${.12+Math.sin(p.a*2)*.12+.12})`:`rgba(255,${205+Math.round(Math.sin(p.a)*20)},150,${.18+Math.sin(p.a*2)*.16+.16})`;g.arc(p.x,p.y,p.r,0,7);g.fill()}}else g.clearRect(0,0,W,H);requestAnimationFrame(loop)})()})();
 
 /* ---------- casca: topo, menu flutuante, botão + ---------- */
 const PAGES={inicio:['Início','home'],agenda:['Agenda','cal'],pacientes:['Pacientes','users'],financeiro:['Finanças','money'],cuidar:['Para mim','heart'],tratamentos:['Tratamentos','tooth'],ajustes:['Ajustes','gear']};
@@ -397,7 +399,8 @@ function menuMais(soAcoes){
   <button class="tile" data-go="agua">${svg('drop',22)}<b>Copo d'água</b></button></div>`;
  const paginas=`<div class="menu-list">${['tratamentos','ajustes'].map(p=>`<button class="menu-item" data-page="${p}"><span class="mi-ico">${svg(PAGES[p][1],20)}</span><b>${PAGES[p][0]}</b>${svg('right',16)}</button>`).join('')}
   <a class="menu-item" href="${LINK_AGENDAR}" target="_blank" rel="noopener"><span class="mi-ico">${svg('link',20)}</span><b>Página de agendamento</b>${svg('right',16)}</a></div>`;
- openSheet(soAcoes===true?'Adicionar':'Menu',soAcoes===true?acoes:`<p class="sheet-sub">Adicionar</p>${acoes}<p class="sheet-sub">Mais páginas</p>${paginas}`,d=>{
+ openSheet(soAcoes===true?'Adicionar':'Menu',soAcoes===true?acoes:`<p class="sheet-sub">Adicionar</p>${acoes}<p class="sheet-sub">Mais páginas</p>${paginas}<p class="sheet-sub">Tema</p>${seletorTema()}`,d=>{
+  d.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{aplicarTema(b.dataset.tema);d.querySelectorAll('[data-tema]').forEach(x=>x.classList.toggle('on',x===b));render()});
   d.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{fecharDlg();ir(b.dataset.page)});
   d.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const g=b.dataset.go;dlg.close();
    if(g==='colar')formColar();else if(g==='tarefa')formTarefa();else if(g==='consulta')formConsulta();else if(g==='paciente')formPaciente();else if(g==='recebimento')formEntradaFin(null,'Entrada');else if(g==='despesa')formEntradaFin(null,'Saída');else if(g==='agua'){beberAgua(1);render()}})})}
@@ -669,13 +672,14 @@ VIEWS.cuidar=function(){const c=care(),ag=c.agua[today()]||0,pct=Math.min(100,Ma
 
 /* ---------- Ajustes ---------- */
 VIEWS.ajustes=function(){return `<section class="page-h"><p class="eyebrow">${DEMO?'Prévia':'Conta: '+esc(COFRE?.user||'')}</p><h1 class="title">Ajustes</h1></section>
- <section class="card glass"><div class="card-h"><h3>${svg('sparkle',18)} Aparência</h3></div><div class="chips"><button class="chip ${temaAtual()==='ouro'?'on':''}" data-tema="ouro">Ouro</button><button class="chip ${temaAtual()==='claro'?'on':''}" data-tema="claro">Claro</button></div><p class="note">Vale só para este aparelho.</p></section>
+ <section class="card glass"><div class="card-h"><h3>${svg('sparkle',18)} Tema</h3></div>${seletorTema()}<p class="note">Vale só para este aparelho. Também dá para trocar no botão Mais do menu.</p></section>
  ${cardAgendamento()}
  <section class="card glass"><div class="card-h"><h3>${svg('down',18)} Importar agenda antiga</h3></div><p class="muted">Traga pacientes e consultas do sistema que você usava (Excel, CSV, Google Agenda). Pode repetir para atualizar: nada é duplicado.</p><button class="btn main" data-act="importar">${svg('down',18)} Importar arquivo</button></section>
  <section class="card glass"><div class="card-h"><h3>${svg('phone',18)} Instalar no iPhone</h3></div><p class="muted">No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”. O painel vira um app com ícone próprio.</p></section>
  <section class="card glass"><div class="card-h"><h3>${svg('down',18)} Cópia dos dados</h3></div><p class="muted">Baixe uma cópia uma vez por mês e guarde em local seguro.</p><button class="btn ghost" data-act="export">${svg('down',18)} Baixar cópia</button></section>
  ${DEMO?`<section class="card glass"><div class="card-h"><h3>${svg('refresh',18)} Prévia</h3></div><p class="muted">Esta é uma prévia com pacientes de exemplo. Pode mexer à vontade.</p><button class="btn ghost" data-act="demo-reset">${svg('refresh',18)} Voltar ao exemplo</button></section>`:`
- <form class="card glass" id="fsenha"><div class="card-h"><h3>Trocar senha</h3></div>${pwField('ns1','Nova senha','new-password')}${pwField('ns2','Repita a nova senha','new-password')}<button class="btn ghost">Trocar senha</button></form>
+ ${COFRE?.mode==='link'&&linkAcesso()?`<section class="card glass"><div class="card-h"><h3>${svg('link',18)} Link de acesso</h3><span class="tag warn">sem senha</span></div><p class="muted">O painel está abrindo pelo link, sem senha. Quando terminar os testes, crie a senha abaixo: o link deixa de funcionar e os aparelhos já conectados continuam funcionando.</p><button class="btn ghost" data-act="ver-link">${svg('link',18)} Ver e enviar o link</button></section>`:''}
+ <form class="card glass" id="fsenha"><div class="card-h"><h3>${COFRE?.mode==='link'?'Criar senha':'Trocar senha'}</h3></div>${pwField('ns1','Nova senha','new-password')}${pwField('ns2','Repita a nova senha','new-password')}<button class="btn ghost">Trocar senha</button></form>
  <form class="card glass" id="ftok"><div class="card-h"><h3>Trocar chave do GitHub</h3></div><p class="muted">Use quando a chave vencer (validade de 1 ano). Mesmas permissões do primeiro acesso.</p><input id="ntok" type="password" placeholder="github_pat_…" autocomplete="off"><button class="btn ghost">Salvar nova chave</button></form>
  <button class="btn danger full" data-act="sair">${svg('out',18)} Sair deste aparelho</button>`}
  <p class="note center">Privacidade (LGPD): aqui ficam só dados de agenda e gestão. O prontuário clínico oficial continua no sistema do consultório.<br>Feito pelo Studio Evolution Tech.</p>`};
@@ -750,7 +754,7 @@ function formImportar(){
 /* ---------- ligações ---------- */
 function bindMain(m){
  m.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>{const a=b.dataset.act;
-  if(a==='nova-consulta')formConsulta();else if(a==='colar')formColar();else if(a==='importar')formImportar();else if(a==='novo-paciente')formPaciente();else if(a==='novo-trat')formTrat();
+  if(a==='nova-consulta')formConsulta();else if(a==='colar')formColar();else if(a==='importar')formImportar();else if(a==='ver-link')mostrarLinkAcesso();else if(a==='novo-paciente')formPaciente();else if(a==='novo-trat')formTrat();
   else if(a==='nova-saida')formEntradaFin(null,'Saída');else if(a==='nova-entrada')formEntradaFin(null,'Entrada');
   else if(a==='cfg-agenda')formAgendaCfg();
   else if(a==='copiar-link'){navigator.clipboard?.writeText(LINK_AGENDAR).then(()=>toast('Link copiado. Coloque na bio do Instagram e no WhatsApp.'),()=>prompt('Copie o link:',LINK_AGENDAR))}
@@ -797,7 +801,7 @@ function bindMain(m){
  bindPw(m);
  const fs=m.querySelector('#fsenha');if(fs)fs.onsubmit=async e=>{e.preventDefault();const a=$('#ns1').value,b=$('#ns2').value;if(a.length<6)return toast('A senha precisa de pelo menos 6 caracteres.');if(a!==b)return toast('As senhas não são iguais.');
   try{toast('Trocando a senha…');const salt=crypto.getRandomValues(new Uint8Array(16));const k=await deriveKey(a,salt,ITER);const cofre={v:1,salt:b64(salt),iter:ITER,user:COFRE.user,box:await enc(k,{token:SESS.token})};
-   await putCofre(cofre);KEY=k;COFRE=cofre;await cacheLocal();if(ls.get(LS.sess))ls.set(LS.sess,{token:SESS.token,key:await exportKey(k)});fs.reset();toast('Senha trocada. Use a nova senha nos outros aparelhos.')}catch{toast('Não consegui trocar a senha. Verifique a internet.')}};
+   await putCofre(cofre);KEY=k;COFRE=cofre;await cacheLocal();if(ls.get(LS.sess))ls.set(LS.sess,{token:SESS.token,key:await exportKey(k)});fs.reset();toast('Senha salva. O link de acesso não funciona mais.');render()}catch{toast('Não consegui trocar a senha. Verifique a internet.')}};
  const ft=m.querySelector('#ftok');if(ft)ft.onsubmit=async e=>{e.preventDefault();const t=$('#ntok').value.trim();if(!/^(github_pat_|ghp_)/.test(t))return toast('Isso não parece uma chave do GitHub.');
   try{await gh(DATA_API,{},t);const cofre={...COFRE,box:await enc(KEY,{token:t})};await putCofre(cofre,t);SESS.token=t;COFRE=cofre;if(ls.get(LS.sess))ls.set(LS.sess,{token:t,key:await exportKey(KEY)});ft.reset();toast('Chave atualizada.')}catch{toast('Chave sem permissão. Confira os dois repositórios com Contents.')}};
 }
@@ -847,7 +851,17 @@ function avisarPaciente(p,a){
  openSheet('Consulta marcada',`<div class="done-anim">${svg('check',34)}</div><p class="center"><b>${esc(p.name)}</b><br><span class="muted">${esc(diaSemana(a.date))} às ${a.time}${a.procedure?' · '+esc(a.procedure):''}</span></p>
   ${p.phone?`<a class="btn wa full big" href="${waLink(p.phone,MSG.agendado(p,a))}" target="_blank" rel="noopener">${svg('wa',18)} Enviar confirmação ao paciente</a>`:''}<button class="btn ghost full" data-close>Fechar</button>`,d=>d.querySelectorAll('a.wa').forEach(b=>b.addEventListener('click',()=>setTimeout(fecharDlg,300))))}
 /* ---------- cadeado ---------- */
+function telaLink(erro){
+ app.innerHTML=`<div class="lock"><form class="lock-box" id="f">
+  <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
+  <p class="sub">Abra pelo <b>link de acesso</b> que você recebeu no WhatsApp. Se preferir, cole o link aqui.</p>
+  <label class="field">Link de acesso<input id="lk" autocomplete="off" placeholder="https://…#acesso=…"></label>
+  <div class="err" id="err" role="alert">${erro||''}</div>
+  <button class="btn main full" id="go">Entrar</button></form></div>`;
+ $('#f').onsubmit=e=>{e.preventDefault();const m=$('#lk').value.match(/acesso=([\w-]+)/)||[0,$('#lk').value.trim()];if(m[1])entrarPorCodigo(m[1])}}
+async function entrarPorCodigo(code){try{const k=await deriveKey(code,unb64(COFRE.salt),COFRE.iter||ITER);const sec=await dec(k,COFRE.box);KEY=k;SESS={token:sec.token};ls.set(LS.sess,{token:SESS.token,key:await exportKey(KEY),code});await entrar()}catch{if(COFRE&&COFRE.mode!=='link'){telaLogin();$('#err').textContent='Agora o painel tem senha. Digite a senha para entrar.'}else telaLink('Esse link não vale mais. Peça o link novo ao Studio Evolution Tech.')}}
 function telaLogin(){
+ if(COFRE&&COFRE.mode==='link')return telaLink();
  app.innerHTML=`<div class="lock"><form class="lock-box" id="f">
   <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
   <p class="sub">Digite sua senha para abrir.</p>
@@ -864,30 +878,38 @@ function telaSetup(){
  const url='https://github.com/settings/personal-access-tokens/new';
  app.innerHTML=`<div class="lock"><form class="lock-box" id="f" style="max-width:520px">
   <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
-  <h2>Primeiro acesso</h2><p class="sub">É uma vez só. Depois, em qualquer aparelho, você entra só com a senha.</p>
-  <section class="card" style="display:grid;gap:12px"><b>1. Crie a senha</b>${pwField('s1','Senha (mínimo 6 caracteres)','new-password')}${pwField('s2','Repita a senha','new-password')}</section>
+  <h2>Primeiro acesso</h2><p class="sub">É uma vez só. Depois ela entra em qualquer aparelho pelo link de acesso (ou pela senha, quando for criada).</p>
+  <section class="card" style="display:grid;gap:12px"><b>1. Como ela vai entrar</b>
+   <label class="switch"><input type="checkbox" id="semSenha" checked><i></i> Por enquanto sem senha (entra pelo link de acesso)</label>
+   <div id="boxSenha" class="hidden" style="display:grid;gap:12px">${pwField('s1','Senha (mínimo 6 caracteres)','new-password')}${pwField('s2','Repita a senha','new-password')}</div>
+   <p class="note">Sem senha: o painel gera um link secreto. Quem tiver o link entra. Depois, em Ajustes, dá para criar a senha e o link deixa de funcionar.</p></section>
   <section class="card" style="display:grid;gap:12px"><b>2. Cole a chave de salvamento do GitHub</b>
    <ol class="steps"><li>Abra <a href="${url}" target="_blank" rel="noopener">github.com → Fine-grained token</a>.</li><li>Nome: <code>${CONFIG.SLUG}-gestao</code>. Validade: 1 ano.</li><li>Repository access: <b>Only select repositories</b> → <code>${REPO}</code> e <code>${DATA_REPO}</code>.</li><li>Permissions → Repository: <b>Contents: Read and write</b>.</li><li>Toque em Generate token, copie e cole aqui.</li></ol>
    <label class="field">Chave<input id="tok" type="password" autocomplete="off" placeholder="github_pat_…" required></label>
-   <p class="note">A chave fica guardada criptografada com a sua senha. Sem a senha, ninguém usa.</p></section>
+   <p class="note">A chave fica guardada criptografada. Sem o link ou a senha, ninguém usa.</p></section>
   <div class="err" id="err" role="alert"></div>
   <button class="btn main full" id="go">Criar cadeado e entrar</button></form></div>`;
  bindPw(app);
- $('#f').onsubmit=async e=>{e.preventDefault();const a=$('#s1').value,b2=$('#s2').value,tok=$('#tok').value.trim(),er=$('#err'),b=$('#go');er.textContent='';
+ const ss=$('#semSenha');ss.onchange=()=>{$('#boxSenha').classList.toggle('hidden',ss.checked);$('#s1').required=$('#s2').required=!ss.checked};ss.onchange();
+ $('#f').onsubmit=async e=>{e.preventDefault();const link=ss.checked;const code=link?b64(crypto.getRandomValues(new Uint8Array(18))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''):'';
+  const a=link?code:$('#s1').value,b2=link?code:$('#s2').value,tok=$('#tok').value.trim(),er=$('#err'),b=$('#go');er.textContent='';
   if(a.length<6)return er.textContent='A senha precisa de pelo menos 6 caracteres.';
   if(a!==b2)return er.textContent='As senhas não são iguais.';
   if(!/^(github_pat_|ghp_)/.test(tok))return er.textContent='Isso não parece uma chave do GitHub (começa com github_pat_).';
   b.disabled=true;
   try{b.textContent='Conferindo a chave…';const u=await gh('/user',{},tok);for(const rp of [REPO,DATA_REPO]){const r=await gh(`/repos/${OWNER}/${rp}`,{},tok);if(!r.permissions?.push)throw Object.assign(Error(),{status:403})}
    b.textContent='Criando o cofre…';const salt=crypto.getRandomValues(new Uint8Array(16));const k=await deriveKey(a,salt,ITER);
-   const cofre={v:1,salt:b64(salt),iter:ITER,user:u.login,box:await enc(k,{token:tok})};
+   const cofre={v:1,salt:b64(salt),iter:ITER,user:u.login,box:await enc(k,{token:tok}),...(link?{mode:'link'}:{})};
    COFRE=cofre;KEY=k;SESS={token:tok};
    b.textContent='Preparando os dados…';const r0=await pull();S=r0.state||emptyState();if(!r0.state)await gh(DATA_API,{method:'PUT',body:JSON.stringify({message:'Inicia dados do consultório',content:b64(te.encode(JSON.stringify(S,null,1)))})},tok);
    b.textContent='Guardando no GitHub…';await putCofre(cofre,tok);
-   ls.set(LS.sess,{token:tok,key:await exportKey(k)});await entrar(false);toast('Cadeado criado. O GitHub leva cerca de 1 minuto para publicar.')}
+   ls.set(LS.sess,{token:tok,key:await exportKey(k),...(link?{code}:{})});await entrar(false);if(link)setTimeout(mostrarLinkAcesso,400);else toast('Cadeado criado. O GitHub leva cerca de 1 minuto para publicar.')}
   catch(x){b.disabled=false;b.textContent='Criar cadeado e entrar';er.textContent=x.status===401?'Chave inválida. Gere de novo e cole.':(x.status===403||x.status===404)?`Chave sem permissão. Confira: repositórios ${REPO} e ${DATA_REPO}, com Contents em leitura e escrita.`:'Não consegui falar com o GitHub. Verifique a internet.'}}}
 
 
+function linkAcesso(){const c=ls.get(LS.sess)?.code;return c?CONFIG.SITE_URL+'#acesso='+c:''}
+function mostrarLinkAcesso(){const l=linkAcesso();if(!l)return;openSheet('Link de acesso',`<p class="muted">Este é o link para a doutora abrir o painel no celular, no tablet e no computador, sem senha. Mande só para ela.</p><textarea readonly style="min-height:90px;font-size:13px">${esc(l)}</textarea>
+ <div class="row2"><button class="btn main" data-cp>${svg('link',18)} Copiar</button><a class="btn wa" href="https://wa.me/?text=${encodeURIComponent('Seu painel do consultório: '+l+'\n\nAbra no celular, no tablet e no computador. No iPhone, toque em Compartilhar e "Adicionar à Tela de Início".')}" target="_blank" rel="noopener">${svg('wa',18)} Enviar</a></div>`,d=>d.querySelector('[data-cp]').onclick=()=>navigator.clipboard?.writeText(l).then(()=>toast('Link copiado.'),()=>{}))}
 async function entrar(fazerPull=true){
  const c=ls.get(LS.cache);let local=null;if(c&&KEY){try{local=await dec(KEY,c)}catch{}}
  S=merge(S,local);
@@ -936,9 +958,11 @@ function exemplo(){const s=emptyState();const P=(name,phone,birth,type='Particul
  if(DEMO){S=ls.get(LS.demo)||exemplo();ls.set(LS.demo,S);shell();render(true);if(PEDIDO)abrirPedido();setTimeout(checarLembretes,1500);return}
  if(!crypto.subtle){app.innerHTML='<div class="lock"><div class="lock-box"><h2>Abra pelo endereço seguro</h2><p class="sub">Abra o link que você recebeu, com https.</p></div></div>';return}
  app.innerHTML='<div class="lock"><div class="lock-box"><span class="logo-ouro lock-logo" role="img" aria-label="Dra. Ana Luiza Costa"></span><p class="sub">Carregando…</p></div></div>';
+ const ACESSO=(location.hash.match(/acesso=([\w-]+)/)||[])[1];if(ACESSO)history.replaceState(null,'',location.pathname+'#inicio');
  const cofreP=fetchCofre();const sess=ls.get(LS.sess);
- if(sess?.key){try{KEY=await importKey(sess.key);SESS={token:sess.token};COFRE=ls.get(LS.cofre);await entrar();cofreP.then(c=>{if(c&&c!=='offline')COFRE=c});return}catch{ls.del(LS.sess)}}
+ if(sess?.key&&!ACESSO){try{KEY=await importKey(sess.key);SESS={token:sess.token};COFRE=ls.get(LS.cofre);await entrar();cofreP.then(c=>{if(c&&c!=='offline')COFRE=c});return}catch{ls.del(LS.sess)}}
  COFRE=await cofreP;
+ if(ACESSO&&COFRE&&COFRE!=='offline')return entrarPorCodigo(ACESSO);
  if(COFRE==='offline'){app.innerHTML='<div class="lock"><div class="lock-box"><h2>Sem internet</h2><p class="sub">Conecte o aparelho e tente de novo.</p><button class="btn main full" onclick="location.reload()">Tentar de novo</button></div></div>';return}
  if(!COFRE)telaSetup();else telaLogin()})();
 })();
