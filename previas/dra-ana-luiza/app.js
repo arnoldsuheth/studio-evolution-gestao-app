@@ -353,7 +353,9 @@ function l3dAlvo(x,y){l3dX=Math.max(-1,Math.min(1,x));l3dY=Math.max(-1,Math.min(
 addEventListener('pointermove',e=>{if($('#l3d'))l3dAlvo((e.clientX/innerWidth-.5)*2,(e.clientY/innerHeight-.5)*2)},{passive:true});
 addEventListener('deviceorientation',e=>{if($('#l3d')&&e.gamma!=null)l3dAlvo(e.gamma/30,(e.beta-45)/30)});
 function l3dLoop(now){const el=$('#l3d');if(!el){l3dRaf=0;return}if(!l3dT)l3dT=now;if(l3dAuto){const k=(now-l3dT)/1000;l3dX=Math.sin(k*.5)*.55;l3dY=Math.cos(k*.37)*.35}l3dCx+=(l3dX-l3dCx)*.06;l3dCy+=(l3dY-l3dCy)*.06;el.style.setProperty('--mx',l3dCx.toFixed(4));el.style.setProperty('--my',l3dCy.toFixed(4));l3dRaf=requestAnimationFrame(l3dLoop)}
-function l3dStart(){if(!l3dRaf&&$('#l3d')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)l3dRaf=requestAnimationFrame(l3dLoop)}
+let movOk=!(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function');
+function pedirMovimento(){if(movOk)return;DeviceOrientationEvent.requestPermission().then(r=>{movOk=r==='granted';const d=$('#l3dDica');if(d)d.remove();if(movOk)toast('Pronto! Incline o celular e veja a logo se mexer.')}).catch(()=>{})}
+function l3dStart(){const el=$('#l3d');if(el&&!el.dataset.b){el.dataset.b=1;el.addEventListener('click',pedirMovimento);if(!movOk)el.insertAdjacentHTML('afterend','<p class="note center" id="l3dDica">Toque na logo para ela acompanhar o movimento do celular.</p>')}if(!l3dRaf&&$('#l3d')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)l3dRaf=requestAnimationFrame(l3dLoop)}
 
 /* pó dourado no fundo (tema Ouro) */
 (function(){const c=document.createElement('canvas');c.id='po';document.body.prepend(c);const g=c.getContext('2d');let W,H,P=[];const dpr=Math.min(2,devicePixelRatio||1);
