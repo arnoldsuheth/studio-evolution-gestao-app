@@ -346,7 +346,7 @@ let filtro={dia:today(),busca:'',pacFiltro:'Todos',trat:'Em andamento',fin:'',fi
 function ir(t){if(!PAGES[t])return;const mudou=t!==tab;tab=t;history.replaceState(null,'','#'+t);render(mudou);if(mudou)scrollTo({top:0,behavior:'instant'})}
 function shell(){
  app.innerHTML=`<div class="bg" aria-hidden="true"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i></div>
- <header class="top glass"><img src="mono-t.png" alt="" class="top-mono"><div class="top-t"><small>${esc(CONFIG.PRO_NAME)}</small><b id="topTitle">${PAGES[tab][0]}</b></div><span class="sync" id="sync"></span></header>
+ <header class="top glass"><span class="mono-ouro top-mono" aria-hidden="true"></span><div class="top-t"><small>${esc(CONFIG.PRO_NAME)}</small><b id="topTitle">${PAGES[tab][0]}</b></div><span class="sync" id="sync"></span></header>
  ${DEMO?'<div class="demo-bar">Prévia com dados de exemplo · nada aqui é salvo na nuvem</div>':''}
  <div id="banner"></div>
  <main id="main"></main>
@@ -411,7 +411,7 @@ VIEWS.inicio=function(){const hoje=S.appointments.filter(a=>a.date===today()&&a.
   ...amanha.map(a=>({ico:'bell',t:'Confirmar '+primeiro(pac(a.patientId)?.name)+' · amanhã '+a.time,act:`<a class="chip sm wa" href="${waLink(pac(a.patientId)?.phone,MSG.confirmar(pac(a.patientId),a))}" target="_blank" rel="noopener" data-confirmou="${a.id}">${svg('wa',14)} Enviar</a>`})),
   ...aniv.map(p=>({ico:'cake',t:'Aniversário de '+primeiro(p.name)+' hoje',act:`<a class="chip sm wa" href="${waLink(p.phone,MSG.aniversario(p))}" target="_blank" rel="noopener">${svg('wa',14)} Parabéns</a>`})),
   ...atras.slice(0,3).map(e=>({ico:'money',t:e.desc+' · '+money(e.value)+' em atraso',act:`<button class="chip sm" data-pago="${e.id}">${svg('check',14)} Recebi</button>`}))];
- return `<section class="hero"><div class="hero-logo"><img src="logo-t.png" alt="${esc(APP_NAME)}"></div>
+ return `<section class="hero"><div class="hero-logo"><span class="logo-ouro" role="img" aria-label="${esc(APP_NAME)}"></span></div>
   <p class="eyebrow">${diaSemana(today())}</p><h1 class="title">${saud}, <em>${esc(CONFIG.PRO_NAME)}</em></h1></section>
  <div class="stats">
   <button class="stat glass" data-page="agenda"><small>Consultas hoje</small><strong>${hoje.length}</strong><span>${hoje.filter(a=>a.status==='Confirmado'||a.status==='Atendido').length} confirmada(s)</span></button>
@@ -826,7 +826,7 @@ function avisarPaciente(p,a){
 /* ---------- cadeado ---------- */
 function telaLogin(){
  app.innerHTML=`<div class="lock"><form class="lock-box" id="f">
-  <img class="lock-logo" src="${LOGO_FULL}" alt="${esc(APP_NAME)}"><h1>GESTÃO DO CONSULTÓRIO</h1>
+  <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
   <p class="sub">Digite sua senha para abrir.</p>
   ${pwField('pw','Senha','current-password')}
   <label class="check"><input type="checkbox" id="lembrar" checked> Lembrar neste aparelho</label>
@@ -840,7 +840,7 @@ function telaLogin(){
 function telaSetup(){
  const url='https://github.com/settings/personal-access-tokens/new';
  app.innerHTML=`<div class="lock"><form class="lock-box" id="f" style="max-width:520px">
-  <img class="lock-logo" src="${LOGO_FULL}" alt="${esc(APP_NAME)}"><h1>GESTÃO DO CONSULTÓRIO</h1>
+  <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
   <h2>Primeiro acesso</h2><p class="sub">É uma vez só. Depois, em qualquer aparelho, você entra só com a senha.</p>
   <section class="card" style="display:grid;gap:12px"><b>1. Crie a senha</b>${pwField('s1','Senha (mínimo 6 caracteres)','new-password')}${pwField('s2','Repita a senha','new-password')}</section>
   <section class="card" style="display:grid;gap:12px"><b>2. Cole a chave de salvamento do GitHub</b>
@@ -912,7 +912,7 @@ function exemplo(){const s=emptyState();const P=(name,phone,birth,type='Particul
 (async function boot(){
  if(DEMO){S=ls.get(LS.demo)||exemplo();ls.set(LS.demo,S);shell();render(true);if(PEDIDO)abrirPedido();setTimeout(checarLembretes,1500);return}
  if(!crypto.subtle){app.innerHTML='<div class="lock"><div class="lock-box"><h2>Abra pelo endereço seguro</h2><p class="sub">Abra o link que você recebeu, com https.</p></div></div>';return}
- app.innerHTML='<div class="lock"><div class="lock-box"><img class="lock-logo" src="'+LOGO_FULL+'" alt=""><p class="sub">Carregando…</p></div></div>';
+ app.innerHTML='<div class="lock"><div class="lock-box"><span class="logo-ouro lock-logo" role="img" aria-label="Dra. Ana Luiza Costa"></span><p class="sub">Carregando…</p></div></div>';
  const cofreP=fetchCofre();const sess=ls.get(LS.sess);
  if(sess?.key){try{KEY=await importKey(sess.key);SESS={token:sess.token};COFRE=ls.get(LS.cofre);await entrar();cofreP.then(c=>{if(c&&c!=='offline')COFRE=c});return}catch{ls.del(LS.sess)}}
  COFRE=await cofreP;

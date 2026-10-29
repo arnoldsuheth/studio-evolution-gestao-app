@@ -395,6 +395,14 @@ dialog.closing .sheet{animation:down .2s ease-in forwards}dialog.closing::backdr
 .tile:hover,.tile:focus-visible{box-shadow:0 0 0 1.5px var(--acc3),0 14px 28px -10px rgba(110,67,32,.45),0 0 22px rgba(214,180,138,.45)}
 .stat:hover{box-shadow:0 0 0 1.5px rgba(201,154,104,.6),var(--shadow2)}
 @media(prefers-reduced-motion:reduce){.dock-ind,.fab::after,.btn.main::before,.chip.on::after,.week button.on::after,.dock-ind::after{animation:none!important}}
+/* logo em ouro (mesma logo original usada como máscara; só o material muda) */
+@keyframes ouroLogo{from{background-position:0% 50%}to{background-position:100% 50%}}
+.logo-ouro,.mono-ouro{display:block;-webkit-mask:url(logo-t.png) center/100% 100% no-repeat;mask:url(logo-t.png) center/100% 100% no-repeat;background:linear-gradient(115deg,#5e3818 0%,#8b5a2b 16%,#c08a4e 28%,#e0b479 34%,#b07a43 42%,#6e4320 55%,#9a6532 67%,#d2a266 75%,#8b5a2b 87%,#5e3818 100%);background-size:260% 100%;animation:ouroLogo 8s ease-in-out infinite alternate;filter:drop-shadow(0 1px 0 rgba(255,250,240,.9)) drop-shadow(0 4px 8px rgba(110,67,32,.25))}
+.logo-ouro{aspect-ratio:964/390;width:min(270px,66vw)}
+.mono-ouro{-webkit-mask-image:url(mono-t.png);mask-image:url(mono-t.png);aspect-ratio:192/148;height:34px;width:auto}
+.lock-logo.logo-ouro{width:min(290px,86%);justify-self:center}
+.hero-logo .logo-ouro{margin:0 auto}
+@media(prefers-reduced-motion:reduce){.logo-ouro,.mono-ouro{animation:none}}
 </style>
 </head>
 <body>
