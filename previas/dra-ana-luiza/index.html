@@ -569,7 +569,9 @@ body:not(.ouro) .l3d-sombra{opacity:.08;filter:blur(18px)}
 .guide-steps{counter-reset:p;list-style:none;padding:0;display:grid;gap:12px}
 .guide-steps li{counter-increment:p;display:flex;gap:14px;align-items:flex-start;font-size:15.5px;line-height:1.5}
 .guide-steps li::before{content:counter(p);flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff;background:var(--grad)}
-.welcome{flex-wrap:wrap}.welcome .grow{flex:1 1 200px}.welcome .col-btns{display:flex;gap:8px;margin-left:auto}
+.welcome{gap:14px}.wl-top{display:flex;gap:12px;align-items:flex-start}.wl-top .grow>b{display:block;font-size:15px}.wl-top small{display:block;font-size:13px;color:var(--muted);line-height:1.5;margin-top:2px}
+.wl-bot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wl-bot .mini-check{margin-right:auto}
+.mini-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer}.mini-check input{width:18px;height:18px;accent-color:var(--acc);margin:0}
 .help-hero .btn{flex:0 0 auto}
 .lock .l3d-scene{width:100%;margin:0 auto}
 body.ouro .help-hero{background:linear-gradient(135deg,rgba(79,208,138,.14),rgba(79,208,138,.04));border-color:rgba(79,208,138,.3)}

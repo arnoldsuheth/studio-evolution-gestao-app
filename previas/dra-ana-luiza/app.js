@@ -378,7 +378,7 @@ let DOCK=['inicio','agenda','pacientes','financeiro','cuidar'];
 const dockAtual=()=>SEC()?['inicio','agenda','pacientes','tratamentos']:['inicio','agenda','pacientes','financeiro','cuidar'];
 let tab=(location.hash.slice(1)||'inicio');if(!PAGES[tab])tab='inicio';
 let filtro={dia:today(),busca:'',pacFiltro:'Todos',trat:'Em andamento',fin:'',finTipo:'Tudo'};
-function ir(t){if(!PAGES[t]||!podeVer(t))return;if(t==='ajuda'){try{localStorage.setItem('clin_'+CONFIG.SLUG+'_bv','1')}catch{}}const mudou=t!==tab;tab=t;history.replaceState(null,'','#'+t);render(mudou);if(mudou)scrollTo({top:0,behavior:'instant'})}
+function ir(t){if(!PAGES[t]||!podeVer(t))return;const mudou=t!==tab;tab=t;history.replaceState(null,'','#'+t);render(mudou);if(mudou)scrollTo({top:0,behavior:'instant'})}
 function shell(){DOCK=dockAtual();if(!podeVer(tab))tab='inicio';
  app.innerHTML=`<div class="bg" aria-hidden="true"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i></div>
  <header class="top glass"><span class="mono-ouro top-mono" aria-hidden="true"></span><div class="top-t"><small>${esc(CONFIG.PRO_NAME)}</small><b id="topTitle">${PAGES[tab][0]}</b></div><span class="sync" id="sync"></span><button class="icon-btn ghost top-help" data-top-ajuda aria-label="Ajuda">${svg('help',22)}</button></header>
@@ -410,10 +410,12 @@ function menuMais(soAcoes){
   <button class="tile" data-go="despesa">${svg('down',22)}<b>Despesa</b></button>
   <button class="tile" data-go="agua">${svg('drop',22)}<b>Copo d'água</b></button>`}</div>`;
  const paginas=`<div class="menu-list">${(SEC()?['ajuda','ajustes']:['ajuda','tratamentos','ajustes']).map(p=>`<button class="menu-item" data-page="${p}"><span class="mi-ico">${svg(PAGES[p][1],20)}</span><b>${PAGES[p][0]}</b>${svg('right',16)}</button>`).join('')}
+  <button class="menu-item" data-bv-menu><span class="mi-ico">${svg('sparkle',20)}</span><b>Boas-vindas</b>${svg('right',16)}</button>
   <a class="menu-item" href="${LINK_AGENDAR}" target="_blank" rel="noopener"><span class="mi-ico">${svg('link',20)}</span><b>Página de agendamento</b>${svg('right',16)}</a></div>`;
  openSheet(soAcoes===true?'Adicionar':'Menu',soAcoes===true?acoes:`<p class="sheet-sub">Adicionar</p>${acoes}<p class="sheet-sub">Mais páginas</p>${paginas}<p class="sheet-sub">Tema</p>${seletorTema()}`,d=>{
   d.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{aplicarTema(b.dataset.tema);d.querySelectorAll('[data-tema]').forEach(x=>x.classList.toggle('on',x===b));render()});
   d.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{fecharDlg();ir(b.dataset.page)});
+  d.querySelectorAll('[data-bv-menu]').forEach(b=>b.onclick=()=>{dlg.close();abrirBoasVindas()});
   d.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const g=b.dataset.go;dlg.close();
    if(g==='colar')formColar();else if(g==='tarefa')formTarefa();else if(g==='consulta')formConsulta();else if(g==='paciente')formPaciente();else if(g==='recebimento')formEntradaFin(null,'Entrada');else if(g==='despesa')formEntradaFin(null,'Saída');else if(g==='agua'){beberAgua(1);render()}})})}
 function formTarefa(){openSheet('Nova tarefa',`<form class="task-add big" id="ft"><input name="t" placeholder="O que precisa fazer hoje?" maxlength="120" autocomplete="off" autofocus><button class="icon-btn main" aria-label="Adicionar">${svg('plus',20)}</button></form><p class="sheet-sub">Sugestões</p><div class="chips">${SUGESTOES_TAREFA.map(s=>`<button class="chip" data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div>`,d=>{
@@ -761,8 +763,18 @@ VIEWS.ajuda=function(){return `<section class="page-h"><p class="eyebrow">Guia r
 function abrirGuia(i){const g=GUIAS[i];if(!g)return;
  openSheet(g[1],`<ol class="guide-steps">${g[2].map(t=>`<li><span>${t}</span></li>`).join('')}</ol>
  <a class="btn ghost full" href="${waStudio('ajuda')}" target="_blank" rel="noopener">${svg('wa',18)} Ainda com dúvida? Chamar no WhatsApp</a>`)}
-function cardBoasVindas(){let v=false;try{v=localStorage.getItem('clin_'+CONFIG.SLUG+'_bv')}catch{}if(v)return '';
- return `<section class="card glass cta welcome"><span class="mi-ico">${svg('help',20)}</span><span class="grow"><b>Bem-vinda ao seu painel!</b><small>Veja o guia rápido: cada função em poucos passos, com botão para falar comigo.</small></span><div class="col-btns"><button class="btn sm main" data-page="ajuda">Ver guia</button><button class="btn sm ghost" data-bv-ok>Depois</button></div></section>`}
+const BV_KEY='clin_'+CONFIG.SLUG+'_bv';
+const bvOculto=()=>{try{return localStorage.getItem(BV_KEY)==='1'}catch{return false}};
+function setBv(ocultar){try{ocultar?localStorage.setItem(BV_KEY,'1'):localStorage.removeItem(BV_KEY)}catch{}}
+const textoBv=()=>`Este painel foi feito para o seu consultório. No guia rápido cada função tem poucos passos, e sempre que precisar é só tocar em <b>Chamar</b> para falar comigo pelo WhatsApp.`;
+function cardBoasVindas(){if(bvOculto())return '';
+ return `<section class="card glass welcome"><div class="wl-top"><span class="mi-ico">${svg('help',20)}</span><span class="grow"><b>Bem-vinda ao seu painel!</b><small>${textoBv()}</small></span></div>
+ <div class="wl-bot"><label class="mini-check"><input type="checkbox" data-bv-ok> Não mostrar mais</label><a class="btn sm ghost" href="${waStudio('ajuda')}" target="_blank" rel="noopener">${svg('wa',16)} Chamar</a><button class="btn sm main" data-page="ajuda">Ver guia</button></div></section>`}
+function abrirBoasVindas(){openSheet('Bem-vinda!',`<p>${textoBv()}</p>
+ <div class="row2"><button class="btn main" data-bv-guia>${svg('help',18)} Ver guia</button><a class="btn wa" href="${waStudio('ajuda')}" target="_blank" rel="noopener">${svg('wa',18)} Chamar</a></div>
+ <label class="switch"><input type="checkbox" data-bv-mostrar ${bvOculto()?'':'checked'}><i></i> Mostrar na tela principal</label>`,d=>{
+  d.querySelector('[data-bv-guia]').onclick=()=>{fecharDlg();ir('ajuda')};
+  d.querySelector('[data-bv-mostrar]').onchange=e=>{setBv(!e.target.checked);render();toast(e.target.checked?'A mensagem volta a aparecer no Início.':'A mensagem não aparece mais no Início.')}})}
 
 /* ---------- confirmar as consultas do próximo dia de uma vez ---------- */
 function diaConfirmar(){for(let i=1;i<=4;i++){const d=addDias(today(),i);if(S.appointments.some(a=>a.date===d&&a.status!=='Cancelado'))return d}return addDias(today(),1)}
@@ -883,7 +895,7 @@ function bindMain(m){
  m.querySelectorAll('[data-form=tarefa]').forEach(f=>f.onsubmit=e=>{e.preventDefault();addTarefa(f.t.value);render();setTimeout(()=>$('[data-form=tarefa] input')?.focus(),50)});
  m.querySelectorAll('[data-dia]').forEach(b=>b.onclick=()=>{filtro.dia=b.dataset.dia;render()});
  m.querySelectorAll('[data-guia]').forEach(b=>b.onclick=()=>abrirGuia(+b.dataset.guia));
- m.querySelectorAll('[data-bv-ok]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('clin_'+CONFIG.SLUG+'_bv','1')}catch{}render()});
+ m.querySelectorAll('[data-bv-ok]').forEach(b=>b.onchange=()=>{if(b.checked){setBv(true);toast('Pronto. Para ver de novo: Mais → Boas-vindas.');setTimeout(render,400)}});
  m.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=()=>{const t=b.dataset.copiar==='saudacao'?MSG_SAUDACAO():MSG_AUSENCIA();navigator.clipboard?.writeText(t).then(()=>toast('Mensagem copiada. Cole no WhatsApp Business.'),()=>prompt('Copie:',t))});
  m.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{aplicarTema(b.dataset.tema);render()});
  m.querySelectorAll('[data-marcar-pac]').forEach(b=>b.onclick=()=>formConsulta(null,b.dataset.marcarPac));
