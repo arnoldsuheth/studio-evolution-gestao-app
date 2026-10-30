@@ -14,7 +14,10 @@ const CONFIG={
  DATA_FILE:'dados.json',
  SLUG:'ana-luiza',
  RETORNO_MESES:6,                                // alerta de retorno
- COR:'#8b5a2b',                                  // cor principal
+ COR:'#8b5a2b',
+ WA_CONSULTORIO:'',                              // WhatsApp do consultório (padrão até ela mudar em Ajustes)
+ STUDIO_WA:'5527999998911',                     // WhatsApp do Studio Evolution Tech (ajuda)
+ STUDIO_NOME:'Arnold · Studio Evolution Tech',                                  // cor principal
  SITE_URL:'https://arnoldsuheth.github.io/dra-ana-luiza-app/', // endereço do painel (a página de agendamento fica em agendar/)
  PUBLIC_FILE:'agenda-publica.json',
  DEMO:true                                       // true = prévia com dados de exemplo, sem nuvem               // só horários ocupados, sem nomes (lido pela página de agendamento)
@@ -71,7 +74,7 @@ function emptyState(){return {v:1,updatedAt:Date.now(),deleted:{},agenda:{...AG_
 let S=null;
 /* ---------- página de agendamento (horários publicados sem nomes) ---------- */
 const AG_PADRAO={ativo:true,whatsapp:'',dias:[1,2,3,4,5],inicio:'08:00',fim:'18:00',intervalo:30,pausaIni:'12:00',pausaFim:'13:30',antecedenciaH:12,semanas:3,folgas:[],endereco:'',procedimentos:['Avaliação','Limpeza','Revisão','Clareamento','Dor / urgência','Outro']};
-const agCfg=()=>({...AG_PADRAO,...(S&&S.agenda||{})});
+const agCfg=()=>{const g={...AG_PADRAO,...(S&&S.agenda||{})};if(!g.whatsapp&&CONFIG.WA_CONSULTORIO)g.whatsapp=CONFIG.WA_CONSULTORIO;return g};
 let pubLast=ls.get(LS.pub)||'';
 async function publicarAgenda(force){if(DEMO||!SESS||!S)return false;const g=agCfg();
  const corpo={v:1,cfg:{ativo:g.ativo,whatsapp:g.whatsapp,dias:g.dias,inicio:g.inicio,fim:g.fim,intervalo:+g.intervalo,pausaIni:g.pausaIni,pausaFim:g.pausaFim,antecedenciaH:+g.antecedenciaH,semanas:+g.semanas,folgas:g.folgas,endereco:g.endereco,procedimentos:g.procedimentos},
@@ -159,6 +162,8 @@ const ico={
  down:'<path d="M12 4v12M6 11l6 6 6-6M4 20h16"/>',
  cake:'<path d="M4 21h16v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2Z"/><path d="M4 16c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5M12 11V8M12 5.5c.8-.6.8-1.8 0-2.5-.8.7-.8 1.9 0 2.5"/>',
  phone:'<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+ chat:'<path d="M4 5h16v11H9l-5 4Z"/><path d="M8 9.5h8M8 12.5h5"/>',
+ help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.2-2.5 3.8M12 17.2v.1"/>',
  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
 };
 const svg=(n,s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ico[n]||''}</svg>`;
@@ -364,25 +369,25 @@ function l3dStart(){const el=$('#l3d');if(el&&!el.dataset.b){el.dataset.b=1;el.a
  (function loop(){if(document.body.classList.contains('ouro')&&!document.hidden){g.clearRect(0,0,W,H);for(const p of P){p.y-=p.v;p.a+=p.f;p.x+=Math.sin(p.a)*.25*dpr;if(p.y<-5){p.y=H+5;p.x=Math.random()*W}g.beginPath();const vd=document.body.classList.contains('vidro');g.fillStyle=vd?`rgba(255,255,255,${.12+Math.sin(p.a*2)*.12+.12})`:`rgba(255,${205+Math.round(Math.sin(p.a)*20)},150,${.18+Math.sin(p.a*2)*.16+.16})`;g.arc(p.x,p.y,p.r,0,7);g.fill()}}else g.clearRect(0,0,W,H);requestAnimationFrame(loop)})()})();
 
 /* ---------- casca: topo, menu flutuante, botão + ---------- */
-const PAGES={inicio:['Início','home'],agenda:['Agenda','cal'],pacientes:['Pacientes','users'],financeiro:['Finanças','money'],cuidar:['Para mim','heart'],tratamentos:['Tratamentos','tooth'],ajustes:['Ajustes','gear']};
+const PAGES={inicio:['Início','home'],agenda:['Agenda','cal'],pacientes:['Pacientes','users'],financeiro:['Finanças','money'],cuidar:['Para mim','heart'],tratamentos:['Tratamentos','tooth'],ajuda:['Ajuda','help'],ajustes:['Ajustes','gear']};
 let ROLE=(ls.get(LS.sess)||{}).role||'';
 const SEC=()=>ROLE==='secretaria';
-const PAG_SEC=['inicio','agenda','pacientes','tratamentos','ajustes'];
+const PAG_SEC=['inicio','agenda','pacientes','tratamentos','ajustes','ajuda'];
 const podeVer=p=>!SEC()||PAG_SEC.includes(p);
 let DOCK=['inicio','agenda','pacientes','financeiro','cuidar'];
 const dockAtual=()=>SEC()?['inicio','agenda','pacientes','tratamentos']:['inicio','agenda','pacientes','financeiro','cuidar'];
 let tab=(location.hash.slice(1)||'inicio');if(!PAGES[tab])tab='inicio';
 let filtro={dia:today(),busca:'',pacFiltro:'Todos',trat:'Em andamento',fin:'',finTipo:'Tudo'};
-function ir(t){if(!PAGES[t]||!podeVer(t))return;const mudou=t!==tab;tab=t;history.replaceState(null,'','#'+t);render(mudou);if(mudou)scrollTo({top:0,behavior:'instant'})}
+function ir(t){if(!PAGES[t]||!podeVer(t))return;if(t==='ajuda'){try{localStorage.setItem('clin_'+CONFIG.SLUG+'_bv','1')}catch{}}const mudou=t!==tab;tab=t;history.replaceState(null,'','#'+t);render(mudou);if(mudou)scrollTo({top:0,behavior:'instant'})}
 function shell(){DOCK=dockAtual();if(!podeVer(tab))tab='inicio';
  app.innerHTML=`<div class="bg" aria-hidden="true"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i></div>
- <header class="top glass"><span class="mono-ouro top-mono" aria-hidden="true"></span><div class="top-t"><small>${esc(CONFIG.PRO_NAME)}</small><b id="topTitle">${PAGES[tab][0]}</b></div><span class="sync" id="sync"></span></header>
+ <header class="top glass"><span class="mono-ouro top-mono" aria-hidden="true"></span><div class="top-t"><small>${esc(CONFIG.PRO_NAME)}</small><b id="topTitle">${PAGES[tab][0]}</b></div><span class="sync" id="sync"></span><button class="icon-btn ghost top-help" data-top-ajuda aria-label="Ajuda">${svg('help',22)}</button></header>
  ${DEMO?`<div class="demo-bar">Prévia com dados de exemplo · nada aqui é salvo na nuvem${SEC()?' · <b>vendo como secretária</b>':''}</div>`:''}${SEC()&&!DEMO?'<div class="demo-bar">Acesso da secretária</div>':''}
  <div id="banner"></div>
  <main id="main"></main>
  <nav class="dock glass" aria-label="Menu"><span class="dock-ind" id="dockInd"></span>${DOCK.map(id=>`<button data-tab="${id}" aria-label="${PAGES[id][0]}">${svg(PAGES[id][1],22)}<span>${PAGES[id][0]}</span></button>`).join('')}<button data-act="mais" aria-label="Mais">${svg('grid',22)}<span>Mais</span></button></nav>
  <button class="fab" data-act="fab" aria-label="Adicionar">${svg('plus',28)}</button>`;
- app.querySelectorAll('.dock [data-tab]').forEach(b=>b.onclick=()=>ir(b.dataset.tab));
+ app.querySelectorAll('.dock [data-tab]').forEach(b=>b.onclick=()=>ir(b.dataset.tab));app.querySelector('[data-top-ajuda]').onclick=()=>ir('ajuda');
  app.querySelector('.dock [data-act=mais]').onclick=menuMais;app.querySelector('.fab').onclick=menuMais.bind(null,true);
  addEventListener('resize',moverInd);setSync(syncState)}
 function moverInd(){const b=app.querySelector(`.dock [data-tab="${tab}"]`)||app.querySelector('.dock [data-act=mais]');const ind=$('#dockInd');if(!b||!ind)return;const d=b.parentElement.getBoundingClientRect(),r=b.getBoundingClientRect();ind.style.cssText=`width:${r.width}px;height:${r.height}px;transform:translate(${r.left-d.left}px,${r.top-d.top}px)`}
@@ -404,7 +409,7 @@ function menuMais(soAcoes){
   ${SEC()?'':`<button class="tile" data-go="recebimento">${svg('money',22)}<b>Recebimento</b></button>
   <button class="tile" data-go="despesa">${svg('down',22)}<b>Despesa</b></button>
   <button class="tile" data-go="agua">${svg('drop',22)}<b>Copo d'água</b></button>`}</div>`;
- const paginas=`<div class="menu-list">${(SEC()?['ajustes']:['tratamentos','ajustes']).map(p=>`<button class="menu-item" data-page="${p}"><span class="mi-ico">${svg(PAGES[p][1],20)}</span><b>${PAGES[p][0]}</b>${svg('right',16)}</button>`).join('')}
+ const paginas=`<div class="menu-list">${(SEC()?['ajuda','ajustes']:['ajuda','tratamentos','ajustes']).map(p=>`<button class="menu-item" data-page="${p}"><span class="mi-ico">${svg(PAGES[p][1],20)}</span><b>${PAGES[p][0]}</b>${svg('right',16)}</button>`).join('')}
   <a class="menu-item" href="${LINK_AGENDAR}" target="_blank" rel="noopener"><span class="mi-ico">${svg('link',20)}</span><b>Página de agendamento</b>${svg('right',16)}</a></div>`;
  openSheet(soAcoes===true?'Adicionar':'Menu',soAcoes===true?acoes:`<p class="sheet-sub">Adicionar</p>${acoes}<p class="sheet-sub">Mais páginas</p>${paginas}<p class="sheet-sub">Tema</p>${seletorTema()}`,d=>{
   d.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{aplicarTema(b.dataset.tema);d.querySelectorAll('[data-tema]').forEach(x=>x.classList.toggle('on',x===b));render()});
@@ -450,6 +455,7 @@ VIEWS.inicio=function(){const hoje=S.appointments.filter(a=>a.date===today()&&a.
   ${SEC()?`<button class="stat glass" data-page="tratamentos"><small>Tratamentos</small><strong>${S.treatments.filter(t=>t.status==='Em andamento').length}</strong><span>em andamento</span></button>`:`<button class="stat glass" data-page="financeiro"><small>Recebido no mês</small><strong>${money(r.rec).replace(',00','')}</strong><span>saldo ${money(r.saldo).replace(',00','')}</span></button>`}
  </div>
  ${!agCfg().whatsapp?`<section class="card glass cta"><span class="mi-ico">${svg('link',20)}</span><span class="grow"><b>Ligue a página de agendamento</b><small>Informe o WhatsApp do consultório e os pacientes pedem horário sozinhos.</small></span><button class="btn sm main" data-act="cfg-agenda">Ligar</button></section>`:''}
+ ${cardBoasVindas()}
  ${cardConfirmar()}
  ${cardProximo()}
  ${cardRetornos(ret)}
@@ -719,6 +725,45 @@ if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceW
 
 
 
+
+/* ---------- Ajuda: guia rápido e contato com o Studio ---------- */
+const GUIAS=[
+ ['cal','Marcar uma consulta',['Toque no botão + (redondo, embaixo à direita) e escolha <b>Consulta</b>.','Toque no nome do paciente. Se for novo, escreva o nome e toque em <b>Cadastrar</b>.','Escolha o dia, o horário livre e o procedimento.','Toque em <b>Salvar</b>. Depois envie a confirmação pelo botão verde.']],
+ ['link','Paciente que marca pelo WhatsApp',['Coloque o link da página de agendamento na bio do Instagram (Ajustes → Copiar link).','O paciente escolhe o horário e o pedido chega no seu WhatsApp.','Toque no link que vem na mensagem: o painel abre com tudo preenchido.','Confira e toque em <b>Salvar</b>. O horário some da página sozinho.']],
+ ['wa','Colar pedido (paciente ou convênio)',['No WhatsApp, segure a mensagem e toque em <b>Copiar</b>.','No painel: botão + → <b>Colar pedido do WhatsApp</b>.','Toque em <b>Colar do WhatsApp</b> e confira os dados.','Toque em <b>Cadastrar e marcar consulta</b>.']],
+ ['bell','Confirmar as consultas de amanhã',['No Início, toque em <b>Enviar</b> no cartão “Confirmar amanhã”.','Toque em <b>Enviar</b> em cada paciente: o WhatsApp abre com a mensagem pronta.','Volte ao painel e siga para o próximo.','Quando responder, toque em <b>Confirmou</b>.']],
+ ['refresh','Ninguém esquecido (6 meses)',['No Início, o cartão “Ninguém esquecido” mostra quem passou ou vai passar de 6 meses.','Toque em <b>Chamar</b> para mandar a mensagem de retorno.','Toque no calendário para já marcar a consulta.','O paciente só sai da lista quando tiver consulta marcada.']],
+ ['tooth','Acompanhar o tratamento',['Abra o paciente (Pacientes → toque no nome).','Em “Acompanhamento”, toque nas etapas na ordem: limpeza, obturação, canal…','Toque em <b>Agendar</b> na etapa para marcar a consulta dela.','Consulta atendida marca a etapa como feita sozinha.']],
+ ['check','Atendido ou faltou',['Na consulta do dia, toque no ✓ verde quando atender.','Se tiver valor, o recebimento entra sozinho nas Finanças.','Se o paciente faltar, toque no ✕ e depois no botão verde para remarcar.']],
+ ['money','Recebimentos e despesas',['Botão + → <b>Recebimento</b> ou <b>Despesa</b>.','Digite o valor e toque na categoria.','Toque em <b>Salvar</b>. Pendente? Toque depois em <b>Recebi</b>.']],
+ ['list','Tarefas do dia',['No Início, escreva a tarefa e toque em +.','Ou toque numa sugestão pronta.','Toque no quadradinho para marcar como feita.']],
+ ['heart','Água, ciclo e versículos',['Toque em <b>Para mim</b> no menu de baixo.','Água: toque em <b>Bebi um copo</b>. Escolha a meta e o lembrete.','Ciclo: toque em <b>Começou hoje</b> no primeiro dia da menstruação.','O versículo troca sozinho a cada 3 horas.']],
+ ['sparkle','Trocar o tema',['Toque em <b>Mais</b> no menu de baixo.','Em “Tema”, escolha <b>Nude</b>, <b>Ouro</b> ou <b>Vidro</b>.','No iPhone, toque na logo para ela acompanhar o movimento do celular.']],
+ ['phone','Instalar no celular',['No iPhone, abra o painel no Safari.','Toque em Compartilhar (quadrado com seta) → <b>Adicionar à Tela de Início</b>.','Pronto: o painel vira um app com a sua logo.']],
+ ['users','Senha e secretária',['Ajustes → <b>Criar senha</b>, quando terminar os testes.','Ajustes → <b>Acesso da secretária</b> → Criar link e mandar só para ela.','Para tirar o acesso: <b>Desligar</b>.']],
+ ['down','Cópia dos dados',['Todo mês o painel lembra no Início.','Toque em <b>Baixar</b> e guarde no Drive ou no e-mail.']]
+];
+const MSG_STUDIO={
+ ajuda:()=>`Olá, Arnold! Aqui é ${SEC()?'do consultório da '+APP_NAME:'a '+CONFIG.PRO_NAME}. Preciso de ajuda com o painel: `,
+ alterar:()=>`Olá, Arnold! Aqui é ${SEC()?'do consultório da '+APP_NAME:'a '+CONFIG.PRO_NAME}. Quero pedir uma alteração no painel: `,
+ problema:()=>`Olá, Arnold! Aqui é ${SEC()?'do consultório da '+APP_NAME:'a '+CONFIG.PRO_NAME}. Aconteceu um problema no painel (tela: ${PAGES[tab]?.[0]||''}): `};
+const waStudio=k=>'https://wa.me/'+CONFIG.STUDIO_WA+'?text='+encodeURIComponent(MSG_STUDIO[k]());
+VIEWS.ajuda=function(){return `<section class="page-h"><p class="eyebrow">Guia rápido</p><h1 class="title">Como <em>usar</em></h1></section>
+ <section class="help-hero">
+  <span class="help-ava">${svg('chat',26)}</span>
+  <div class="grow"><b>Precisa de ajuda?</b><small>Fale direto com ${esc(CONFIG.STUDIO_NOME)} pelo WhatsApp.</small></div>
+  <a class="btn wa" href="${waStudio('ajuda')}" target="_blank" rel="noopener">${svg('wa',18)} Chamar</a>
+ </section>
+ <div class="row2"><a class="btn ghost" href="${waStudio('alterar')}" target="_blank" rel="noopener">${svg('sparkle',18)} Pedir alteração</a><a class="btn ghost" href="${waStudio('problema')}" target="_blank" rel="noopener">${svg('help',18)} Relatar problema</a></div>
+ <p class="sheet-sub" style="margin:6px 2px 10px">Toque no que você quer fazer</p>
+ <div class="guide-grid">${GUIAS.filter(g=>!SEC()||!['money','heart','users','down'].includes(g[0])).map((g,i)=>`<button class="guide glass" data-guia="${GUIAS.indexOf(g)}"><span class="mi-ico">${svg(g[0],22)}</span><b>${esc(g[1])}</b>${svg('right',16)}</button>`).join('')}</div>
+ <p class="note center" style="margin-top:14px">Painel feito pelo Studio Evolution Tech.</p>`};
+function abrirGuia(i){const g=GUIAS[i];if(!g)return;
+ openSheet(g[1],`<ol class="guide-steps">${g[2].map(t=>`<li><span>${t}</span></li>`).join('')}</ol>
+ <a class="btn ghost full" href="${waStudio('ajuda')}" target="_blank" rel="noopener">${svg('wa',18)} Ainda com dúvida? Chamar no WhatsApp</a>`)}
+function cardBoasVindas(){let v=false;try{v=localStorage.getItem('clin_'+CONFIG.SLUG+'_bv')}catch{}if(v)return '';
+ return `<section class="card glass cta welcome"><span class="mi-ico">${svg('help',20)}</span><span class="grow"><b>Bem-vinda ao seu painel!</b><small>Veja o guia rápido: cada função em poucos passos, com botão para falar comigo.</small></span><div class="col-btns"><button class="btn sm main" data-page="ajuda">Ver guia</button><button class="btn sm ghost" data-bv-ok>Depois</button></div></section>`}
+
 /* ---------- confirmar as consultas do próximo dia de uma vez ---------- */
 function diaConfirmar(){for(let i=1;i<=4;i++){const d=addDias(today(),i);if(S.appointments.some(a=>a.date===d&&a.status!=='Cancelado'))return d}return addDias(today(),1)}
 function aConfirmar(){const d=diaConfirmar();return S.appointments.filter(a=>a.date===d&&a.status==='Agendado').sort((a,b)=>a.time.localeCompare(b.time))}
@@ -837,6 +882,8 @@ function bindMain(m){
  m.querySelectorAll('[data-sug-task]').forEach(b=>b.onclick=()=>{addTarefa(b.dataset.sugTask);render()});
  m.querySelectorAll('[data-form=tarefa]').forEach(f=>f.onsubmit=e=>{e.preventDefault();addTarefa(f.t.value);render();setTimeout(()=>$('[data-form=tarefa] input')?.focus(),50)});
  m.querySelectorAll('[data-dia]').forEach(b=>b.onclick=()=>{filtro.dia=b.dataset.dia;render()});
+ m.querySelectorAll('[data-guia]').forEach(b=>b.onclick=()=>abrirGuia(+b.dataset.guia));
+ m.querySelectorAll('[data-bv-ok]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('clin_'+CONFIG.SLUG+'_bv','1')}catch{}render()});
  m.querySelectorAll('[data-copiar]').forEach(b=>b.onclick=()=>{const t=b.dataset.copiar==='saudacao'?MSG_SAUDACAO():MSG_AUSENCIA();navigator.clipboard?.writeText(t).then(()=>toast('Mensagem copiada. Cole no WhatsApp Business.'),()=>prompt('Copie:',t))});
  m.querySelectorAll('[data-tema]').forEach(b=>b.onclick=()=>{aplicarTema(b.dataset.tema);render()});
  m.querySelectorAll('[data-marcar-pac]').forEach(b=>b.onclick=()=>formConsulta(null,b.dataset.marcarPac));
@@ -909,23 +956,24 @@ function avisarPaciente(p,a){
 /* ---------- cadeado ---------- */
 function telaLink(erro){
  app.innerHTML=`<div class="lock"><form class="lock-box" id="f">
-  <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
+  ${logo3D()}<h1>GESTÃO DO CONSULTÓRIO</h1>
   <p class="sub">Abra pelo <b>link de acesso</b> que você recebeu no WhatsApp. Se preferir, cole o link aqui.</p>
   <label class="field">Link de acesso<input id="lk" autocomplete="off" placeholder="https://…#acesso=…"></label>
   <div class="err" id="err" role="alert">${erro||''}</div>
   <button class="btn main full" id="go">Entrar</button></form></div>`;
+ l3dStart();
  $('#f').onsubmit=e=>{e.preventDefault();const m=$('#lk').value.match(/acesso=([\w-]+)/)||[0,$('#lk').value.trim()];if(m[1])entrarPorCodigo(m[1])}}
 async function entrarPorCodigo(code){try{const k=await deriveKey(code,unb64(COFRE.salt),COFRE.iter||ITER);const sec=await dec(k,COFRE.box);KEY=k;SESS={token:sec.token};ls.set(LS.sess,{token:SESS.token,key:await exportKey(KEY),code});await entrar()}catch{if(COFRE&&COFRE.mode!=='link'){telaLogin();$('#err').textContent='Agora o painel tem senha. Digite a senha para entrar.'}else telaLink('Esse link não vale mais. Peça o link novo ao Studio Evolution Tech.')}}
 function telaLogin(){
  if(COFRE&&COFRE.mode==='link')return telaLink();
  app.innerHTML=`<div class="lock"><form class="lock-box" id="f">
-  <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
+  ${logo3D()}<h1>GESTÃO DO CONSULTÓRIO</h1>
   <p class="sub">Digite sua senha para abrir.</p>
   ${pwField('pw','Senha','current-password')}
   <label class="check"><input type="checkbox" id="lembrar" checked> Lembrar neste aparelho</label>
   <div class="err" id="err" role="alert"></div>
   <button class="btn main full" id="go">Entrar</button></form></div>`;
- bindPw(app);
+ bindPw(app);l3dStart();
  $('#f').onsubmit=async e=>{e.preventDefault();const b=$('#go');b.disabled=true;b.textContent='Abrindo…';$('#err').textContent='';
   try{const k=await deriveKey($('#pw').value,unb64(COFRE.salt),COFRE.iter||ITER);const sec=await dec(k,COFRE.box);KEY=k;SESS={token:sec.token};
    if($('#lembrar').checked)ls.set(LS.sess,{token:SESS.token,key:await exportKey(KEY)});await entrar()}
@@ -933,7 +981,7 @@ function telaLogin(){
 function telaSetup(){
  const url='https://github.com/settings/personal-access-tokens/new';
  app.innerHTML=`<div class="lock"><form class="lock-box" id="f" style="max-width:520px">
-  <span class="logo-ouro lock-logo" role="img" aria-label="${esc(APP_NAME)}"></span><h1>GESTÃO DO CONSULTÓRIO</h1>
+  ${logo3D()}<h1>GESTÃO DO CONSULTÓRIO</h1>
   <h2>Primeiro acesso</h2><p class="sub">É uma vez só. Depois ela entra em qualquer aparelho pelo link de acesso (ou pela senha, quando for criada).</p>
   <section class="card" style="display:grid;gap:12px"><b>1. Como ela vai entrar</b>
    <label class="switch"><input type="checkbox" id="semSenha" checked><i></i> Por enquanto sem senha (entra pelo link de acesso)</label>
@@ -945,7 +993,7 @@ function telaSetup(){
    <p class="note">A chave fica guardada criptografada. Sem o link ou a senha, ninguém usa.</p></section>
   <div class="err" id="err" role="alert"></div>
   <button class="btn main full" id="go">Criar cadeado e entrar</button></form></div>`;
- bindPw(app);
+ bindPw(app);l3dStart();
  const ss=$('#semSenha');ss.onchange=()=>{$('#boxSenha').classList.toggle('hidden',ss.checked);$('#s1').required=$('#s2').required=!ss.checked};ss.onchange();
  $('#f').onsubmit=async e=>{e.preventDefault();const link=ss.checked;const code=link?b64(crypto.getRandomValues(new Uint8Array(18))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''):'';
   const a=link?code:$('#s1').value,b2=link?code:$('#s2').value,tok=$('#tok').value.trim(),er=$('#err'),b=$('#go');er.textContent='';
@@ -1012,7 +1060,7 @@ function exemplo(){const s=emptyState();const P=(name,phone,birth,type='Particul
 /* ---------- entrada da secretária ---------- */
 async function entrarEquipe(code){const c=await lerEquipe();
  if(c==='offline'){app.innerHTML='<div class="lock"><div class="lock-box"><h2>Sem internet</h2><p class="sub">Conecte o aparelho e abra o link de novo.</p></div></div>';return}
- if(!c){app.innerHTML='<div class="lock"><div class="lock-box"><span class="logo-ouro lock-logo"></span><h2>Acesso desligado</h2><p class="sub">Esse link não vale mais. Peça um novo para a doutora.</p></div></div>';return}
+ if(!c){app.innerHTML='<div class="lock"><div class="lock-box">'+logo3D()+'<h2>Acesso desligado</h2><p class="sub">Esse link não vale mais. Peça um novo para a doutora.</p></div></div>';return}
  try{const k=await deriveKey(code,unb64(c.salt),c.iter||ITER);const sec=await dec(k,c.box);KEY=k;SESS={token:sec.token};ROLE='secretaria';COFRE=ls.get(LS.cofre)||{user:c.user};ls.set(LS.sess,{token:SESS.token,key:await exportKey(KEY),role:'secretaria'});await entrar()}
  catch{app.innerHTML='<div class="lock"><div class="lock-box"><h2>Link inválido</h2><p class="sub">Confira se copiou o link inteiro.</p></div></div>'}}
 
@@ -1020,7 +1068,7 @@ async function entrarEquipe(code){const c=await lerEquipe();
 (async function boot(){
  if(DEMO){S=ls.get(LS.demo)||exemplo();ls.set(LS.demo,S);shell();render(true);if(PEDIDO)abrirPedido();setTimeout(checarLembretes,1500);return}
  if(!crypto.subtle){app.innerHTML='<div class="lock"><div class="lock-box"><h2>Abra pelo endereço seguro</h2><p class="sub">Abra o link que você recebeu, com https.</p></div></div>';return}
- app.innerHTML='<div class="lock"><div class="lock-box"><span class="logo-ouro lock-logo" role="img" aria-label="Dra. Ana Luiza Costa"></span><p class="sub">Carregando…</p></div></div>';
+ app.innerHTML='<div class="lock"><div class="lock-box">'+logo3D()+'<p class="sub">Carregando…</p></div></div>';l3dStart();
  const ACESSO=(location.hash.match(/acesso=([\w-]+)/)||[])[1],EQUIPE=(location.hash.match(/equipe=([\w-]+)/)||[])[1];if(ACESSO||EQUIPE)history.replaceState(null,'',location.pathname+'#inicio');
  if(EQUIPE)return entrarEquipe(EQUIPE);
  const cofreP=fetchCofre();const sess=ls.get(LS.sess);
@@ -1029,6 +1077,6 @@ async function entrarEquipe(code){const c=await lerEquipe();
  if(ACESSO&&COFRE&&COFRE!=='offline')return entrarPorCodigo(ACESSO);
  if(COFRE==='offline'){app.innerHTML='<div class="lock"><div class="lock-box"><h2>Sem internet</h2><p class="sub">Conecte o aparelho e tente de novo.</p><button class="btn main full" onclick="location.reload()">Tentar de novo</button></div></div>';return}
  let off=false;try{off=sessionStorage.getItem('sec_off')}catch{}
- if(off){app.innerHTML='<div class="lock"><div class="lock-box"><span class="logo-ouro lock-logo"></span><h2>Acesso desligado</h2><p class="sub">O acesso da secretária foi desligado. Peça um link novo para a doutora.</p></div></div>';return}
+ if(off){app.innerHTML='<div class="lock"><div class="lock-box">'+logo3D()+'<h2>Acesso desligado</h2><p class="sub">O acesso da secretária foi desligado. Peça um link novo para a doutora.</p></div></div>';return}
  if(!COFRE)telaSetup();else telaLogin()})();
 })();

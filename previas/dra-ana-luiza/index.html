@@ -141,7 +141,7 @@ main.enter>*:nth-child(2){animation-delay:.04s}main.enter>*:nth-child(3){animati
 .dock button svg{width:21px;height:21px;transition:transform .35s var(--ease)}.dock button.on svg{transform:translateY(-1px) scale(1.06)}
 .dock-ind{position:absolute;left:0;top:0;border-radius:20px;background:var(--grad);box-shadow:0 8px 18px -6px rgba(110,67,32,.65);transition:transform .45s var(--ease),width .45s var(--ease)}
 .fab{position:fixed;z-index:51;right:18px;bottom:calc(94px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:20px;display:grid;place-items:center;color:#fff;background:var(--grad);box-shadow:0 14px 30px -8px rgba(110,67,32,.7),inset 0 1px 0 rgba(255,255,255,.3);overflow:hidden;transition:transform .35s var(--ease),opacity .3s}
-.fab.esconde{transform:translateY(160%) scale(.6);opacity:0}
+.fab.esconde{transform:translateY(160%) scale(.6);opacity:0;pointer-events:none}
 .fab:hover{transform:translateY(-2px) rotate(90deg)}.fab:active{transform:scale(.9)}
 @media(min-width:900px){
  .dock{left:20px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;padding:8px}
@@ -557,6 +557,22 @@ body:not(.ouro) .l3d-glass::after{background:linear-gradient(100deg,transparent,
 body:not(.ouro) .l3d-borda{background:conic-gradient(from var(--a,0deg),transparent 0 60%,rgba(201,154,94,.85) 75%,transparent 90%)}
 body:not(.ouro) .l3d-l{background:linear-gradient(115deg,#5e3818 0%,#8b5a2b 16%,#b07a43 28%,#d2a266 35%,#8b5a2b 44%,#5e3818 56%,#9a6532 68%,#c08a4e 76%,#7a4a1f 88%,#5e3818 100%);background-size:260% 100%;filter:drop-shadow(0 1px 0 rgba(255,255,255,.9)) drop-shadow(0 6px 9px rgba(110,67,32,.28))}
 body:not(.ouro) .l3d-sombra{opacity:.08;filter:blur(18px)}
+/* ajuda */
+.top-help{margin-left:6px}
+.help-hero{display:flex;align-items:center;gap:14px;padding:18px;border-radius:var(--r);margin-bottom:12px;background:linear-gradient(135deg,rgba(31,143,85,.14),rgba(31,143,85,.05));border:1px solid rgba(31,143,85,.28)}
+.help-hero b{display:block;font-size:16px}.help-hero small{display:block;font-size:12.5px;color:var(--muted)}
+.help-ava{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:#1f8f55;color:#fff;flex:0 0 auto;box-shadow:0 8px 18px -8px rgba(31,143,85,.7)}
+.guide-grid{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:700px){.guide-grid{grid-template-columns:1fr 1fr}}
+.guide{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;text-align:left;transition:transform .2s var(--ease)}
+.guide:active{transform:scale(.98)}.guide b{flex:1;font-size:15px}.guide>svg{color:var(--dim)}
+.guide-steps{counter-reset:p;list-style:none;padding:0;display:grid;gap:12px}
+.guide-steps li{counter-increment:p;display:flex;gap:14px;align-items:flex-start;font-size:15.5px;line-height:1.5}
+.guide-steps li::before{content:counter(p);flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff;background:var(--grad)}
+.welcome{flex-wrap:wrap}.welcome .grow{flex:1 1 200px}.welcome .col-btns{display:flex;gap:8px;margin-left:auto}
+.help-hero .btn{flex:0 0 auto}
+.lock .l3d-scene{width:100%;margin:0 auto}
+body.ouro .help-hero{background:linear-gradient(135deg,rgba(79,208,138,.14),rgba(79,208,138,.04));border-color:rgba(79,208,138,.3)}
 </style>
 </head>
 <body>
