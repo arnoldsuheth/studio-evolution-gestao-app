@@ -455,7 +455,7 @@ PASSOS: personalizar.py <cliente>.json \u2192 testar \u2192 pr\xE9via ao Arnold 
 
 ${el}`,briefings:[{passo:1,titulo:"Prospectar",quando:"Primeiro contato.",texto:`Oi, {{nome}}! Tudo bem? Aqui \xE9 o Arnold, do *Studio Evolution Tech* \u{1F44B}
 
-Eu crio o *Life Trail*: um app pessoal, com a sua foto, que organiza a sua rotina, avisa a pr\xF3xima tarefa, tem um bichinho que cresce quando voc\xEA se cuida, plano de leitura da B\xEDblia, treino, ciclo e finan\xE7as. Abre como um app no celular e no computador, com senha e tudo salvo na nuvem.
+Eu crio o *Life Trail*: um app pessoal, com a sua foto, que organiza a sua rotina, avisa a pr\xF3xima tarefa, tem um bichinho que cresce quando voc\xEA se cuida, plano de leitura da B\xEDblia, treino, ciclo e finan\xE7as. Abre como um app no celular e no computador, com senha e tudo guardado com seguran\xE7a.
 
 Quer um com a sua cara? Responde este formul\xE1rio r\xE1pido (quase tudo de clique) que eu monto uma proposta:
 {{formulario}}`},{passo:2,titulo:"Proposta + entrega para teste",quando:"Com o esbo\xE7o pronto: proposta, link e PDF de uso. O teste de 3 dias come\xE7a no dia do envio.",texto:`Oi, {{nome}}! Tudo bem? Seu *Life Trail* j\xE1 est\xE1 pronto para voc\xEA testar.
@@ -477,7 +477,7 @@ Dentro do app tamb\xE9m tem o menu *Como usar*, em Perfil, com tudo explicado.
 {{escopo}}
 
 *Depois do teste*
-Aprovou? Voc\xEA faz o 1\xBA pagamento e eu coloco a sua *senha* no mesmo link. Tudo o que voc\xEA j\xE1 anotou continua l\xE1, agora salvo na nuvem e protegido. Com isso o projeto fica conclu\xEDdo.
+Aprovou? Voc\xEA faz o 1\xBA pagamento e eu coloco a sua *senha* no mesmo link. Tudo o que voc\xEA j\xE1 anotou continua l\xE1, {{lt_proposta}}. Com isso o projeto fica conclu\xEDdo.
 
 Proposta v\xE1lida at\xE9 *{{validade}}*. Se quiser ajustar alguma coisa, \xE9 s\xF3 me falar aqui.`},{passo:3,titulo:"Fim do teste (3\xBA dia)",quando:"No 3\xBA dia de teste. O cart\xE3o avisa no Acompanhamento.",texto:`Oi, {{nome}}! Hoje fecha o 3\xBA dia de teste do seu Life Trail. Como foi?
 
@@ -490,7 +490,7 @@ Se quiser mudar alguma coisa antes, me fala que eu ajusto.
 Seu Life Trail agora est\xE1 *protegido com senha* e o projeto est\xE1 conclu\xEDdo.
 *Seu app:* {{link}}
 
-*Primeiro acesso:* abra o link, crie a sua senha e deixe marcado "Lembrar neste aparelho". Tudo o que voc\xEA anotou no teste continua l\xE1 e passa a ficar salvo na nuvem. Em outro celular, \xE9 s\xF3 entrar com a mesma senha.
+*Primeiro acesso:* {{lt_acesso}}
 
 *Resumo da sua compra*
 \u2022 {{produto}}: {{criacao}}{{parcelas_linha}}
@@ -498,8 +498,8 @@ Seu Life Trail agora est\xE1 *protegido com senha* e o projeto est\xE1 conclu\xE
 {{bonus_linha}}`},{passo:5,titulo:"Instru\xE7\xF5es finais e agradecimento",quando:"No dia seguinte \xE0 conclus\xE3o.",texto:`*Manual r\xE1pido do seu Life Trail*
 
 1. *Instalar:* abra {{link}} no Safari, toque em Compartilhar e depois em "Adicionar \xE0 Tela de In\xEDcio".
-2. *Entrar:* use a sua senha e deixe marcado "Lembrar neste aparelho".
-3. *Seus dados* ficam na nuvem, protegidos pela sua senha. Ningu\xE9m mais l\xEA, nem eu.
+2. *Entrar:* {{lt_entrar}}
+3. *Seus dados* {{lt_dados}}
 4. *In\xEDcio:* o aviso mostra a pr\xF3xima tarefa. Toque em "Concluir" quando terminar.
 5. *Bichinho:* toque nele. Ele cresce quando voc\xEA bebe \xE1gua, treina, l\xEA a Palavra e cumpre a rotina.
 6. *Rotina:* cada bloco e h\xE1bito vira uma flor na \xE1rvore do dia.
@@ -507,7 +507,7 @@ Seu Life Trail agora est\xE1 *protegido com senha* e o projeto est\xE1 conclu\xE
 8. *Guia completo:* menu *Como usar* (em Perfil) e o PDF: {{guia}}
 9. *Esqueceu a senha ou quer um ajuste?* Me chama aqui.
 
-Muito obrigado pela confian\xE7a, {{nome}}!`}]}],h3=e=>e?e[0].toUpperCase()+e.slice(1):"",b3=e=>e?new Date(e+"T12:00:00").toLocaleDateString("pt-BR"):"";function x3(e){if(!e)return"";let a=new Date(e+"T12:00:00"),t=a.getDate();return a.setMonth(a.getMonth()+1),a.getDate()<t&&a.setDate(0),a.toISOString().slice(0,10)}function Y1(e,a,t){let n=e.data,o=ba.find(h=>h.id===n.modelId),i=ja.plans.find(h=>h.id===n.planId),r=a.filter(h=>h.data.clientId===e.id&&h.data.type==="Cria\xE7\xE3o"),s=t.find(h=>h.data.clientId===e.id&&h.data.url)||t.find(h=>h.data.clientId===e.id),l=n.contractValue||r.reduce((h,E)=>h+E.data.amount,0),d=r.length,u=d>1?" em "+d+"x de "+$(Math.round(l/d)):d===1&&l?" (pagamento \xFAnico)":"",m=n.bonusMonths?"\u{1F381} "+n.bonusMonths+" m\xEAs"+(n.bonusMonths>1?"es":"")+" de "+(i?.name||"suporte")+" inclu\xEDdo"+(n.bonusMonths>1?"s":"")+(n.bonusCondition?" ("+n.bonusCondition+")":""):"",b=(n.service||"").replace(/Trial/g,"Trail"),f=mn.find(h=>h.name===b)?.scope||"",y=o?.tipo==="Life Trail"?f3:m3;return{nome:h3((n.contact||n.name||"").split(" ")[0]),empresa:n.name||"",produto:b||(o?o.nome:""),criacao:l?$(l):"",parcelas_linha:l?u:"",mensalidade:n.monthlyValue?$(n.monthlyValue):"",plano:i?.name||"",fidelidade_linha:n.loyaltyMonths?" (fidelidade de "+n.loyaltyMonths+" meses)":"",bonus_linha:m,escopo:f?`*O que est\xE1 inclu\xEDdo*
+Muito obrigado pela confian\xE7a, {{nome}}!`}]}],h3=e=>e?e[0].toUpperCase()+e.slice(1):"",b3=e=>e?new Date(e+"T12:00:00").toLocaleDateString("pt-BR"):"";function x3(e){if(!e)return"";let a=new Date(e+"T12:00:00"),t=a.getDate();return a.setMonth(a.getMonth()+1),a.getDate()<t&&a.setDate(0),a.toISOString().slice(0,10)}function Y1(e,a,t){let n=e.data,o=ba.find(h=>h.id===n.modelId),i=ja.plans.find(h=>h.id===n.planId),r=a.filter(h=>h.data.clientId===e.id&&h.data.type==="Cria\xE7\xE3o"),s=t.find(h=>h.data.clientId===e.id&&h.data.url)||t.find(h=>h.data.clientId===e.id),l=n.contractValue||r.reduce((h,E)=>h+E.data.amount,0),d=r.length,u=d>1?" em "+d+"x de "+$(Math.round(l/d)):d===1&&l?" (pagamento \xFAnico)":"",m=n.bonusMonths?"\u{1F381} "+n.bonusMonths+" m\xEAs"+(n.bonusMonths>1?"es":"")+" de "+(i?.name||"suporte")+" inclu\xEDdo"+(n.bonusMonths>1?"s":"")+(n.bonusCondition?" ("+n.bonusCondition+")":""):"",b=(n.service||"").replace(/Trial/g,"Trail"),f=mn.find(h=>h.name===b)?.scope||"",y=o?.tipo==="Life Trail"?f3:m3;return{lt_proposta:n.monthlyValue>0?"agora salvo na nuvem e protegido":"protegido pela sua senha",lt_acesso:n.monthlyValue>0?"abra o link, crie a sua senha e deixe marcado \"Lembrar neste aparelho\". Tudo o que voc\u00ea anotou no teste continua l\u00e1 e passa a ficar salvo na nuvem. Em outro celular, \u00e9 s\u00f3 entrar com a mesma senha.":"abra o link e crie a sua senha (toque no olhinho para conferir o que digitou). Tudo o que voc\u00ea anotou no teste continua l\u00e1, guardado neste celular e protegido pela sua senha.",lt_entrar:n.monthlyValue>0?"use a sua senha e deixe marcado \"Lembrar neste aparelho\".":"abra o app e digite a sua senha.",lt_dados:n.monthlyValue>0?"ficam na nuvem, protegidos pela sua senha. Ningu\u00e9m mais l\u00ea, nem eu.":"ficam guardados neste celular, protegidos pela sua senha. Ningu\u00e9m mais l\u00ea, nem eu. Antes de trocar de celular ou limpar o navegador, me chama.",nome:h3((n.contact||n.name||"").split(" ")[0]),empresa:n.name||"",produto:b||(o?o.nome:""),criacao:l?$(l):"",parcelas_linha:l?u:"",mensalidade:n.monthlyValue?$(n.monthlyValue):"",plano:i?.name||"",fidelidade_linha:n.loyaltyMonths&&n.monthlyValue?" (fidelidade de "+n.loyaltyMonths+" meses)":"",bonus_linha:m,escopo:f?`*O que est\xE1 inclu\xEDdo*
 `+f.split(`
 `).map(h=>"\u2022 "+h).join(`
 `):"",validade:b3(x3(n.proposalSentAt||new Date().toISOString().slice(0,10))),link:s?.data.url||"",guia:(n.links||[]).find(h=>/guia|pdf|manual/i.test(h.label))?.url||"",primeira:(()=>{let h=r.filter(E=>E.data.status==="Pendente").sort((E,x)=>(E.data.due||"9999").localeCompare(x.data.due||"9999"))[0];return h?$(h.data.amount):""})(),formulario:o?.tipo==="Painel de gest\xE3o"?"":y,acompanhamento:g3}}function Z1(e,a){return e.split(`
