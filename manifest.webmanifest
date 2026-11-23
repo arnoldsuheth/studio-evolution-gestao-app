@@ -21,5 +21,51 @@
       "type": "image/png",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Hoje",
+      "short_name": "Hoje",
+      "url": "./?aba=hoje",
+      "icons": [
+        {
+          "src": "./icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Clientes",
+      "short_name": "Clientes",
+      "url": "./#clients",
+      "icons": [
+        {
+          "src": "./icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Cadastrar cliente",
+      "short_name": "Novo cliente",
+      "url": "./?novo=cliente",
+      "icons": [
+        {
+          "src": "./icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Financeiro",
+      "short_name": "Financeiro",
+      "url": "./#finance",
+      "icons": [
+        {
+          "src": "./icon-192-v2.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }
